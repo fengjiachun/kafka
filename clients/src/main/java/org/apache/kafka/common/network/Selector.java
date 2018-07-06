@@ -213,6 +213,7 @@ public class Selector implements Selectable {
      * Note that we are not checking if the connection id is valid - since the connection already exists
      */
     public void register(String id, SocketChannel socketChannel) throws ClosedChannelException {
+        // 注册 OP_READ 事件并包装为KafkaChannel
         SelectionKey key = socketChannel.register(nioSelector, SelectionKey.OP_READ);
         KafkaChannel channel = channelBuilder.buildChannel(id, key, maxReceiveSize);
         key.attach(channel);

@@ -179,9 +179,12 @@ object RequestChannel extends Logging {
   case object CloseConnectionAction extends ResponseAction
 }
 
+// 请求通道会保存全局的请求队列和每个处理器对应的响应队列
 class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMetricsGroup {
   private var responseListeners: List[(Int) => Unit] = Nil
+  // 全局请求队列
   private val requestQueue = new ArrayBlockingQueue[RequestChannel.Request](queueSize)
+  // 每个处理器都有一个响应队列
   private val responseQueues = new Array[BlockingQueue[RequestChannel.Response]](numProcessors)
   for(i <- 0 until numProcessors)
     responseQueues(i) = new LinkedBlockingQueue[RequestChannel.Response]()
@@ -206,11 +209,13 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
     )
   }
 
+  // 如果请求队列满了, 会阻塞直到有处理器取走一个请求
   /** Send a request to be handled, potentially blocking until there is room in the queue for the request */
   def sendRequest(request: RequestChannel.Request) {
     requestQueue.put(request)
   }
 
+  // 发送响应给SocketServer, 并最终通过网络返回给客户端
   /** Send a response back to the socket server to be sent over the network */
   def sendResponse(response: RequestChannel.Response) {
     responseQueues(response.processor).put(response)
@@ -232,10 +237,12 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
       onResponse(processor)
   }
 
+  // 处理器从请求队列取出请求并交给KafkaApis处理, 队列为空会阻塞直到加入新的请求或超时
   /** Get the next request or block until specified time has elapsed */
   def receiveRequest(timeout: Long): RequestChannel.Request =
     requestQueue.poll(timeout, TimeUnit.MILLISECONDS)
 
+  // 处理器从请求队列取出请求并交给KafkaApis处理, 队列为空会阻塞直到加入新的请求
   /** Get the next request or block until there is one */
   def receiveRequest(): RequestChannel.Request =
     requestQueue.take()

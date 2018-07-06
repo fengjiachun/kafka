@@ -89,6 +89,17 @@ object KafkaServer {
 
 }
 
+// KafkaServer网络层相关组件:
+//
+// 一个接收线程: Acceptor
+// 多个处理器: Processor
+// 一个请求通道: RequestChannel
+// 一个请求队列: requestQueue
+// 多个响应队列: responseQueue
+// 一个请求处理线程连接池: KafkaRequestHandlerPool
+// 多个请求处理线程: KafkaRequestHandler
+// 一个服务端请求入口: KafkaApis
+//
 /**
  * Represents the lifecycle of a single Kafka broker. Handles all functionality required
  * to start up and shutdown a single Kafka node.

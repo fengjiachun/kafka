@@ -28,6 +28,7 @@ import org.apache.kafka.common.utils.{Time, Utils}
 /**
  * A thread that answers kafka requests.
  */
+// 每个请求处理线程共享一个请求通道, 在获取到请求后交给KafkaApis处理
 class KafkaRequestHandler(id: Int,
                           brokerId: Int,
                           val aggregateIdleMeter: Meter,
@@ -47,6 +48,7 @@ class KafkaRequestHandler(id: Int,
           // time_window is independent of the number of threads, each recorded idle
           // time should be discounted by # threads.
           val startSelectTime = time.nanoseconds
+          // 获取客户端请求
           req = requestChannel.receiveRequest(300)
           val idleTime = time.nanoseconds - startSelectTime
           aggregateIdleMeter.mark(idleTime / totalHandlerThreads)
@@ -59,6 +61,7 @@ class KafkaRequestHandler(id: Int,
         }
         req.requestDequeueTimeMs = time.milliseconds
         trace("Kafka request handler %d on broker %d handling request %s".format(id, brokerId, req))
+        // 交给全局的KafkaApis处理
         apis.handle(req)
       } catch {
         case e: Throwable => error("Exception when handling request", e)
