@@ -167,13 +167,15 @@ public final class RecordAccumulator {
         // abortIncompleteBatches().
         appendsInProgress.incrementAndGet();
         try {
+            // 获取分区双端队列
             // check if we have an in-progress batch
             Deque<RecordBatch> dq = getOrCreateDeque(tp);
             synchronized (dq) {
                 if (closed)
                     throw new IllegalStateException("Cannot send after the producer is closed.");
+                // 获取队列的最后一个批记录并尝试追加消息
                 RecordAppendResult appendResult = tryAppend(timestamp, key, value, callback, dq);
-                if (appendResult != null)
+                if (appendResult != null) // 追加消息成功
                     return appendResult;
             }
 
@@ -192,12 +194,16 @@ public final class RecordAccumulator {
                     free.deallocate(buffer);
                     return appendResult;
                 }
+                // 新创建一个批记录
                 MemoryRecordsBuilder recordsBuilder = MemoryRecords.builder(buffer, compression, TimestampType.CREATE_TIME, this.batchSize);
                 RecordBatch batch = new RecordBatch(tp, recordsBuilder, time.milliseconds());
+                // batch.tryAppend() 尝试追加消息
                 FutureRecordMetadata future = Utils.notNull(batch.tryAppend(timestamp, key, value, callback, time.milliseconds()));
 
+                // 添加批记录到队尾
                 dq.addLast(batch);
                 incomplete.add(batch);
+                // 必要时通知(Sender会从队头弹出批记录并发送整个批记录)
                 return new RecordAppendResult(future, dq.size() > 1 || batch.isFull(), true);
             }
         } finally {
@@ -210,12 +216,14 @@ public final class RecordAccumulator {
      * resources (like compression streams buffers).
      */
     private RecordAppendResult tryAppend(long timestamp, byte[] key, byte[] value, Callback callback, Deque<RecordBatch> deque) {
+        // 获取队列的最后一个批记录
         RecordBatch last = deque.peekLast();
         if (last != null) {
+            // last 不为空, 则尝试追加消息
             FutureRecordMetadata future = last.tryAppend(timestamp, key, value, callback, time.milliseconds());
-            if (future == null)
+            if (future == null) // 追加失败
                 last.close();
-            else
+            else // 追加成功
                 return new RecordAppendResult(future, deque.size() > 1 || last.isFull(), false);
         }
         return null;
@@ -379,6 +387,7 @@ public final class RecordAccumulator {
             return Collections.emptyMap();
 
         Map<Integer, List<RecordBatch>> batches = new HashMap<>();
+        // 迭代每个分区, 获取TopicPartition对应主副本节点: nodeId
         for (Node node : nodes) {
             int size = 0;
             List<PartitionInfo> parts = cluster.partitionsForNode(node.id());
@@ -393,6 +402,7 @@ public final class RecordAccumulator {
                     Deque<RecordBatch> deque = getDeque(new TopicPartition(part.topic(), part.partition()));
                     if (deque != null) {
                         synchronized (deque) {
+                            // 获取对应分区批记录队列中的第一个批记录: TopicPartition --> RecordBatch
                             RecordBatch first = deque.peekFirst();
                             if (first != null) {
                                 boolean backoff = first.attempts > 0 && first.lastAttemptMs + retryBackoffMs > now;
@@ -417,6 +427,7 @@ public final class RecordAccumulator {
                 }
                 this.drainIndex = (this.drainIndex + 1) % parts.size();
             } while (start != drainIndex);
+            // 将相同副本节点的批记录放在一起, 便于批量发送
             batches.put(node.id(), ready);
         }
         return batches;

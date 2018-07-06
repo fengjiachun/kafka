@@ -450,6 +450,10 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             ClusterAndWaitTime clusterAndWaitTime = waitOnMetadata(record.topic(), record.partition(), maxBlockTimeMs);
             long remainingWaitMs = Math.max(0, maxBlockTimeMs - clusterAndWaitTime.waitedOnMetadataMs);
             Cluster cluster = clusterAndWaitTime.cluster;
+            // 序列化消息的 Key
+            //
+            // 消息是没有 Key 这个概念的, 包含 Key 的消息通常是要取出来做进一步处理的.  相同的 Key 有多条数据,
+            // 并且都保存在同一个分区内. 如果要读取指定 Key 的消息, 只需要和一个分区联系
             byte[] serializedKey;
             try {
                 serializedKey = keySerializer.serialize(record.topic(), record.key());
@@ -458,6 +462,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                         " to class " + producerConfig.getClass(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG).getName() +
                         " specified in key.serializer");
             }
+            // 序列化消息的 Value
             byte[] serializedValue;
             try {
                 serializedValue = valueSerializer.serialize(record.topic(), record.value());
@@ -467,6 +472,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                         " specified in value.serializer");
             }
 
+            // 选择消息的分区并构造TopicPartition
             int partition = partition(record, serializedKey, serializedValue, cluster);
             int serializedSize = Records.LOG_OVERHEAD + Record.recordSize(serializedKey, serializedValue);
             ensureValidRecordSize(serializedSize);
@@ -475,6 +481,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             log.trace("Sending record {} with callback {} to topic {} partition {}", record, callback, record.topic(), partition);
             // producer callback will make sure to call both 'callback' and interceptor callback
             Callback interceptCallback = this.interceptors == null ? callback : new InterceptorCallback<>(callback, this.interceptors, tp);
+            // 追加消息到记录收集器里, 如果记录收集器满了, 唤醒Sender发送消息
             RecordAccumulator.RecordAppendResult result = accumulator.append(tp, timestamp, serializedKey, serializedValue, interceptCallback, remainingWaitMs);
             if (result.batchIsFull || result.newBatchCreated) {
                 log.trace("Waking up the sender since topic {} partition {} is either full or getting a new batch", record.topic(), partition);
