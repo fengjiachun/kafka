@@ -72,6 +72,7 @@ class KafkaApis(val requestChannel: RequestChannel,
   /**
    * Top-level method that handles all requests and multiplexes to the right api
    */
+  // handle方法是处理服务端各种请求的入口
   def handle(request: RequestChannel.Request) {
     try {
       trace("Handling request:%s from connection %s;securityProtocol:%s,principal:%s".
@@ -345,6 +346,7 @@ class KafkaApis(val requestChannel: RequestChannel,
   /**
    * Handle a produce request
    */
+  // 处理生产请求
   def handleProducerRequest(request: RequestChannel.Request) {
     val produceRequest = request.body.asInstanceOf[ProduceRequest]
     val numBytesAppended = request.header.sizeOf + produceRequest.sizeOf
