@@ -342,6 +342,7 @@ public class Sender implements Runnable {
      */
     private void sendProduceRequests(Map<Integer, List<RecordBatch>> collated, long now) {
         for (Map.Entry<Integer, List<RecordBatch>> entry : collated.entrySet())
+            // 发送线程为每个目标节点创建一个客户端请求
             sendProduceRequest(now, entry.getKey(), acks, requestTimeout, entry.getValue());
     }
 
@@ -352,11 +353,14 @@ public class Sender implements Runnable {
         Map<TopicPartition, MemoryRecords> produceRecordsByPartition = new HashMap<>(batches.size());
         final Map<TopicPartition, RecordBatch> recordsByPartition = new HashMap<>(batches.size());
         for (RecordBatch batch : batches) {
+            // 每个RecordBatch都有唯一的TopicPartition
             TopicPartition tp = batch.topicPartition;
+            // RecordBatch#records 是 MemoryRecords, 底层是 ByteBuffer
             produceRecordsByPartition.put(tp, batch.records());
             recordsByPartition.put(tp, batch);
         }
 
+        // 构造生产者请求
         ProduceRequest.Builder requestBuilder =
                 new ProduceRequest.Builder(acks, timeout, produceRecordsByPartition);
         RequestCompletionHandler callback = new RequestCompletionHandler() {

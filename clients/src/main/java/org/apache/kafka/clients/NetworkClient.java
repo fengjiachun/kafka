@@ -167,6 +167,8 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
+     * 判断指定节点是否准备完毕
+     *
      * Begin connecting to the given node, return true if we are already connected and ready to send to that node.
      *
      * @param node The node to check
@@ -182,9 +184,10 @@ public class NetworkClient implements KafkaClient {
             return true;
 
         if (connectionStates.canConnect(node.idString(), now))
+            // 允许连接但还未建立连接, 那么初始化连接
             // if we are interested in sending to a node and we don't have a connection to it, initiate one
             initiateConnect(node, now);
-
+        // 不允许连接, 或者刚刚初始化都不算准备好, 全部返回false
         return false;
     }
 
@@ -253,6 +256,8 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
+     * 客户端请求入队, 暂未发送
+     *
      * Queue up the given request for sending. Requests can only be sent out to ready nodes.
      * @param request The request
      * @param now The current timestamp
@@ -329,11 +334,13 @@ public class NetworkClient implements KafkaClient {
                 isInternalRequest,
                 send,
                 now);
-        this.inFlightRequests.add(inFlightRequest);
+        this.inFlightRequests.add(inFlightRequest); // 还未开始真正发送, 先加入队列
         selector.send(inFlightRequest.send);
     }
 
     /**
+     * 轮询动作会真正执行网络请求
+     *
      * Do actual reads and writes to sockets.
      *
      * @param timeout The maximum amount of time to wait (in ms) for responses if there are none immediately,
@@ -355,13 +362,14 @@ public class NetworkClient implements KafkaClient {
         long updatedNow = this.time.milliseconds();
         List<ClientResponse> responses = new ArrayList<>();
         handleAbortedSends(responses);
-        handleCompletedSends(responses, updatedNow);
-        handleCompletedReceives(responses, updatedNow);
-        handleDisconnections(responses, updatedNow);
-        handleConnections();
+        handleCompletedSends(responses, updatedNow);        // 完成发送的处理器
+        handleCompletedReceives(responses, updatedNow);     // 完成接收的处理器
+        handleDisconnections(responses, updatedNow);        // 断开连接的处理器
+        handleConnections();                                // 处理连接的处理器
         handleInitiateApiVersionRequests(updatedNow);
-        handleTimedOutRequests(responses, updatedNow);
+        handleTimedOutRequests(responses, updatedNow);      // 超时请求处理器
 
+        // 上面几个处理器都会王responses中添加数据, 有了响应后开始调用回调函数
         // invoke callbacks
         for (ClientResponse response : responses) {
             try {
