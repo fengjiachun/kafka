@@ -808,6 +808,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      *                 subscribed topics
      * @throws IllegalArgumentException If topics is null or contains null or empty elements
      */
+    // 订阅主题
     @Override
     public void subscribe(Collection<String> topics, ConsumerRebalanceListener listener) {
         acquire();
@@ -921,6 +922,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @param partitions The list of partitions to assign this consumer
      * @throws IllegalArgumentException If partitions is null or contains null or empty topics
      */
+    // 手动分配分区
     @Override
     public void assign(Collection<TopicPartition> partitions) {
         acquire();
@@ -1031,7 +1033,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
 
         // fetch positions if we have partitions we're subscribed to that we
         // don't know the offset for
-        if (!subscriptions.hasAllFetchPositions())
+        if (!subscriptions.hasAllFetchPositions()) // 初始化分区状态, 比如更新拉取偏移量
             updateFetchPositions(this.subscriptions.missingFetchPositions());
 
         // if data is available already, return it immediately
@@ -1040,7 +1042,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
             return records;
 
         // send any new fetches (won't resend pending fetches)
-        fetcher.sendFetches();
+        fetcher.sendFetches(); // 发送拉取请求
 
         long now = time.milliseconds();
         long pollTimeout = Math.min(coordinator.timeToNextPoll(now), timeout);
@@ -1584,6 +1586,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @throws NoOffsetForPartitionException If no offset is stored for a given partition and no offset reset policy is
      *             defined
      */
+    // 更新分区信息, 包括刷新已提交的偏移量, 更新拉取偏移量
     private void updateFetchPositions(Set<TopicPartition> partitions) {
         // lookup any positions for partitions which are awaiting reset (which may be the
         // case if the user called seekToBeginning or seekToEnd. We do this check first to
@@ -1595,9 +1598,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
             // if we still don't have offsets for the given partitions, then we should either
             // seek to the last committed position or reset using the auto reset policy
 
+            // 如有必要, 更新提交偏移量
             // first refresh commits for all assigned partitions
             coordinator.refreshCommittedOffsetsIfNeeded();
 
+            // 更新分区的拉取偏移量
             // then do any offset lookups in case some positions are not known
             fetcher.updateFetchPositions(partitions);
         }

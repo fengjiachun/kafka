@@ -62,12 +62,15 @@ public class SubscriptionState {
     /* the pattern user has requested */
     private Pattern subscribedPattern;
 
+    // 用户注册的主题
     /* the list of topics the user has requested */
     private Set<String> subscription;
 
+    // 消费组订阅的主题
     /* the list of topics the group has subscribed to (set only for the leader on join group completion) */
     private final Set<String> groupSubscription;
 
+    // 分配和订阅方式都用assignment来存储消费者当前分配的分区及其状态
     /* the partitions that are currently assigned, note that the order of partition matters (see FetchBuilder for more details) */
     private final PartitionStates<TopicPartitionState> assignment;
 
@@ -126,6 +129,7 @@ public class SubscriptionState {
     }
 
     private void changeSubscription(Set<String> topicsToSubscribe) {
+        // 每次订阅都会判断是否有变化, 没有变化就不需要为消费者重新分配分区
         if (!this.subscription.equals(topicsToSubscribe)) {
             this.subscription = topicsToSubscribe;
             this.groupSubscription.addAll(topicsToSubscribe);
@@ -420,6 +424,7 @@ public class SubscriptionState {
         return map;
     }
 
+    // 分区状态
     private static class TopicPartitionState {
         private Long position; // last consumed position
         private Long highWatermark; // the high watermark from last fetch

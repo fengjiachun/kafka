@@ -236,19 +236,22 @@ public class Fetcher<K, V> implements SubscriptionState.Listener {
      * @param partitions the partitions to update positions for
      * @throws NoOffsetForPartitionException If no offset is stored for a given partition and no reset policy is available
      */
+    // 更新分区状态中的拉取偏移量
     public void updateFetchPositions(Set<TopicPartition> partitions) {
         // reset the fetch position to the committed position
         for (TopicPartition tp : partitions) {
             if (!subscriptions.isAssigned(tp) || subscriptions.hasValidPosition(tp))
                 continue;
 
+            // 重置拉取偏移量到已提交过的位置
             if (subscriptions.isOffsetResetNeeded(tp)) {
                 resetOffset(tp);
-            } else if (subscriptions.committed(tp) == null) {
+            } else if (subscriptions.committed(tp) == null) { // 已提交偏移量为空
                 // there's no committed position, so we need to reset with the default strategy
                 subscriptions.needOffsetReset(tp);
                 resetOffset(tp);
             } else {
+                // 分区状态中的已提交偏移量不为空, 直接使用它作为拉取偏移量
                 long committed = subscriptions.committed(tp).offset();
                 log.debug("Resetting offset for partition {} to the committed offset {}", tp, committed);
                 subscriptions.seek(tp, committed);
@@ -360,6 +363,7 @@ public class Fetcher<K, V> implements SubscriptionState.Listener {
      * @param partition The given partition that needs reset offset
      * @throws org.apache.kafka.clients.consumer.NoOffsetForPartitionException If no offset reset strategy is defined
      */
+    // 根据重置策略重置分区的拉取偏移量
     private void resetOffset(TopicPartition partition) {
         OffsetResetStrategy strategy = subscriptions.resetStrategy(partition);
         log.debug("Resetting offset for partition {} to {} offset.", partition, strategy.name().toLowerCase(Locale.ROOT));

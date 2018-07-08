@@ -430,13 +430,16 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
     /**
      * Refresh the committed offsets for provided partitions.
      */
+    // 更新分区状态中已提交的偏移量
     public void refreshCommittedOffsetsIfNeeded() {
         if (subscriptions.refreshCommitsNeeded()) {
+            // 发送 OFFSET_FETCH 请求给协调者, 获取分区已提交的偏移量
             Map<TopicPartition, OffsetAndMetadata> offsets = fetchCommittedOffsets(subscriptions.assignedPartitions());
             for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
                 TopicPartition tp = entry.getKey();
                 // verify assignment is still active
                 if (subscriptions.isAssigned(tp))
+                    // 更新分区状态的 committed 变量, 协调节点保存的数据更新到客户端
                     this.subscriptions.committed(tp, entry.getValue());
             }
             this.subscriptions.commitsRefreshed();

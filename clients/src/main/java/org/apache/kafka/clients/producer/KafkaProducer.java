@@ -326,7 +326,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                     this.requestTimeoutMs);
             String ioThreadName = "kafka-producer-network-thread" + (clientId.length() > 0 ? " | " + clientId : "");
             this.ioThread = new KafkaThread(ioThreadName, this.sender, true);
-            this.ioThread.start();
+            this.ioThread.start(); // 启动发送线程
 
             this.errors = this.metrics.sensor("errors");
 
