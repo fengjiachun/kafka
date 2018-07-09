@@ -451,6 +451,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
      * @param partitions The partitions to fetch offsets for
      * @return A map from partition to the committed offset
      */
+    // 发送"获取偏移量"请求给协调节点
     public Map<TopicPartition, OffsetAndMetadata> fetchCommittedOffsets(Set<TopicPartition> partitions) {
         while (true) {
             ensureCoordinatorReady();
