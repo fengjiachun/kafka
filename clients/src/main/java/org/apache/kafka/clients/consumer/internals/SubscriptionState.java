@@ -262,6 +262,7 @@ public class SubscriptionState {
         return this.groupSubscription;
     }
 
+    // 获取指定分区的状态对象
     private TopicPartitionState assignedState(TopicPartition tp) {
         TopicPartitionState state = this.assignment.stateValue(tp);
         if (state == null)
@@ -269,10 +270,12 @@ public class SubscriptionState {
         return state;
     }
 
+    // 更新分区的消费偏移量
     public void committed(TopicPartition tp, OffsetAndMetadata offset) {
         assignedState(tp).committed(offset);
     }
 
+    // 获取指定分区最新提交的消费偏移量
     public OffsetAndMetadata committed(TopicPartition tp) {
         return assignedState(tp).committed;
     }
@@ -289,6 +292,7 @@ public class SubscriptionState {
         this.needsFetchCommittedOffsets = false;
     }
 
+    // 定位到分区指定位置并更新拉取偏移量
     public void seek(TopicPartition tp, long offset) {
         assignedState(tp).seek(offset);
     }
@@ -297,6 +301,7 @@ public class SubscriptionState {
         return this.assignment.partitionSet();
     }
 
+    // 找出允许拉取, 即存在拉取偏移量的所有分区, 用来构建拉取请求
     public List<TopicPartition> fetchablePartitions() {
         List<TopicPartition> fetchable = new ArrayList<>(assignment.size());
         for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
@@ -310,10 +315,12 @@ public class SubscriptionState {
         return this.subscriptionType == SubscriptionType.AUTO_TOPICS || this.subscriptionType == SubscriptionType.AUTO_PATTERN;
     }
 
+    // 设置指定分区的拉取偏移量
     public void position(TopicPartition tp, long offset) {
         assignedState(tp).position(offset);
     }
 
+    // 获取指定分区的拉取偏移量
     public Long position(TopicPartition tp) {
         return assignedState(tp).position;
     }
@@ -363,10 +370,12 @@ public class SubscriptionState {
         return true;
     }
 
+    // 判断是否所有分区都有有效的拉取偏移量
     public boolean hasAllFetchPositions() {
         return hasAllFetchPositions(this.assignedPartitions());
     }
 
+    // 找出没有拉取偏移量的所有分区
     public Set<TopicPartition> missingFetchPositions() {
         Set<TopicPartition> missing = new HashSet<>();
         for (PartitionStates.PartitionState<TopicPartitionState> state : assignment.partitionStates()) {
@@ -392,10 +401,12 @@ public class SubscriptionState {
         return isAssigned(tp) && assignedState(tp).hasValidPosition();
     }
 
+    // 暂停拉取分区
     public void pause(TopicPartition tp) {
         assignedState(tp).pause();
     }
 
+    // 活肤拉取分区
     public void resume(TopicPartition tp) {
         assignedState(tp).resume();
     }
@@ -426,10 +437,14 @@ public class SubscriptionState {
 
     // 分区状态
     private static class TopicPartitionState {
+        // 拉取偏移量
         private Long position; // last consumed position
         private Long highWatermark; // the high watermark from last fetch
+        // 消费偏移量, 提交偏移量
         private OffsetAndMetadata committed;  // last committed position
+        // 分区是否被暂停拉取
         private boolean paused;  // whether this partition has been paused by the user
+        // 重置策略
         private OffsetResetStrategy resetStrategy;  // the strategy to use if the offset needs resetting
 
         public TopicPartitionState() {
@@ -440,6 +455,7 @@ public class SubscriptionState {
             this.resetStrategy = null;
         }
 
+        // 重置拉取偏移量, 第一次分配个消费者时调用
         private void awaitReset(OffsetResetStrategy strategy) {
             this.resetStrategy = strategy;
             this.position = null;
@@ -458,12 +474,14 @@ public class SubscriptionState {
             this.resetStrategy = null;
         }
 
+        // 更新拉取偏移量, 拉取线程在拉取到消息后调用
         private void position(long offset) {
             if (!hasValidPosition())
                 throw new IllegalStateException("Cannot set a new position without a valid current position");
             this.position = offset;
         }
 
+        // 更新提交偏移量, 定时提交任务调用
         private void committed(OffsetAndMetadata offset) {
             this.committed = offset;
         }
@@ -477,6 +495,7 @@ public class SubscriptionState {
         }
 
         private boolean isFetchable() {
+            // 没有被暂停且position有效才可以被拉取
             return !paused && hasValidPosition();
         }
 
