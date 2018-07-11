@@ -107,8 +107,10 @@ class Log(@volatile var dir: File,
       0
   }
 
+  // "下一个偏移量元数据", 他的数据都是从当前活动的日志分段中取得的
   @volatile private var nextOffsetMetadata: LogOffsetMetadata = _
 
+  // 日志包含多个日志分段
   /* the actual segments of the log */
   private val segments: ConcurrentNavigableMap[java.lang.Long, LogSegment] = new ConcurrentSkipListMap[java.lang.Long, LogSegment]
   locally {
@@ -116,13 +118,16 @@ class Log(@volatile var dir: File,
 
     loadSegments()
     /* Calculate the offset of the next message */
-    nextOffsetMetadata = new LogOffsetMetadata(activeSegment.nextOffset(), activeSegment.baseOffset,
-      activeSegment.size.toInt)
+    nextOffsetMetadata = new LogOffsetMetadata(
+      activeSegment.nextOffset() /* 下一条消息的偏移量 */,
+      activeSegment.baseOffset /* 日志分段的基准偏移量 */,
+      activeSegment.size.toInt /* 日志分段的大小 */)
 
     info("Completed load of log %s with %d log segments and log end offset %d in %d ms"
       .format(name, segments.size(), logEndOffset, time.milliseconds - startMs))
   }
 
+  // 一个日志的目录对应一个分区
   val topicPartition: TopicPartition = Log.parseTopicPartitionName(dir)
 
   private val tags = Map("topic" -> topicPartition.topic, "partition" -> topicPartition.partition.toString)
@@ -154,6 +159,7 @@ class Log(@volatile var dir: File,
   /** The name of this log */
   def name  = dir.getName()
 
+  // 加载所有日志分段, 通常发生在代理节点重启时
   /* Load the log segments from the log files on disk */
   private def loadSegments() {
     // create the log directory if it doesn't exist
@@ -736,6 +742,7 @@ class Log(@volatile var dir: File,
   /**
    *  The offset of the next message that will be appended to the log
    */
+    // 下一条消息的偏移量, 取自 "下一个偏移量元数据" 中的 "消息偏移量"
   def logEndOffset: Long = nextOffsetMetadata.messageOffset
 
   /**
@@ -930,6 +937,7 @@ class Log(@volatile var dir: File,
   /**
    * The active segment that is currently taking appends
    */
+  // 任何时刻, 只有一个活动的日志分段
   def activeSegment = segments.lastEntry.getValue
 
   /**
@@ -1046,6 +1054,7 @@ class Log(@volatile var dir: File,
    *
    * @param segment The segment to add
    */
+  // 添加日志分段到日志中
   def addSegment(segment: LogSegment) = this.segments.put(segment.baseOffset, segment)
 
 }

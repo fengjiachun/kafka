@@ -46,6 +46,7 @@ import scala.math._
  * @param indexIntervalBytes The approximate number of bytes between entries in the index
  * @param time The time instance
  */
+ // 日志分段, 由数据文件和索引文件组成
 @nonthreadsafe
 class LogSegment(val log: FileRecords,
                  val index: OffsetIndex,
