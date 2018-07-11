@@ -62,11 +62,11 @@ public class JoinGroupRequest extends AbstractRequest {
     }
 
     public static class Builder extends AbstractRequest.Builder<JoinGroupRequest> {
-        private final String groupId;
-        private final int sessionTimeout;
-        private final String memberId;
-        private final String protocolType;
-        private final List<ProtocolMetadata> groupProtocols;
+        private final String groupId; // 消费组
+        private final int sessionTimeout; // 会话超时时间
+        private final String memberId; // 消费者成员编号
+        private final String protocolType; // 协议类型
+        private final List<ProtocolMetadata> groupProtocols; // 消费组协议
         private int rebalanceTimeout = 0;
 
         public Builder(String groupId, int sessionTimeout, String memberId,

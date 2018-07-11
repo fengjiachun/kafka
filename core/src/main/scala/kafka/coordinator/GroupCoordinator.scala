@@ -128,6 +128,7 @@ class GroupCoordinator(val brokerId: Int,
     }
   }
 
+  // 协调者处理 "加入组" 请求, 将消费者添加到消费组的元数据当中
   private def doJoinGroup(group: GroupMetadata,
                           memberId: String,
                           clientId: String,
@@ -137,6 +138,7 @@ class GroupCoordinator(val brokerId: Int,
                           protocolType: String,
                           protocols: List[(String, Array[Byte])],
                           responseCallback: JoinCallback) {
+    // 同步块, 针对消费组元数据操作时不允许并发访问
     group synchronized {
       if (!group.is(Empty) && (group.protocolType != Some(protocolType) || !group.supportsProtocols(protocols.map(_._1).toSet))) {
         // if the new member does not support the group protocol, reject it
@@ -154,6 +156,7 @@ class GroupCoordinator(val brokerId: Int,
             // joining without the specified member id,
             responseCallback(joinError(memberId, Errors.UNKNOWN_MEMBER_ID.code))
 
+            // 要么添加, 要么更新
           case PreparingRebalance =>
             if (memberId == JoinGroupRequest.UNKNOWN_MEMBER_ID) {
               addMemberAndRebalance(rebalanceTimeoutMs, sessionTimeoutMs, clientId, clientHost, protocolType, protocols, group, responseCallback)

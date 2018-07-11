@@ -54,12 +54,12 @@ public class JoinGroupResponse extends AbstractResponse {
     public static final int UNKNOWN_GENERATION_ID = -1;
     public static final String UNKNOWN_MEMBER_ID = "";
 
-    private final short errorCode;
-    private final int generationId;
-    private final String groupProtocol;
-    private final String memberId;
+    private final short errorCode; // 错误码
+    private final int generationId; // 发生复杂均衡时递增
+    private final String groupProtocol; // 所有消费者都支持的协议类型
+    private final String memberId; // 消费者编号
     private final String leaderId;
-    private final Map<String, ByteBuffer> members;
+    private final Map<String, ByteBuffer> members; // 消费者编号 -> 消费者元数据
 
     public JoinGroupResponse(short errorCode,
                              int generationId,

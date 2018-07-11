@@ -38,8 +38,8 @@ public abstract class AbstractPartitionAssignor implements PartitionAssignor {
      * @param subscriptions Map from the memberId to their respective topic subscription
      * @return Map from each member to the list of partitions assigned to them.
      */
-    public abstract Map<String, List<TopicPartition>> assign(Map<String, Integer> partitionsPerTopic,
-                                                             Map<String, List<String>> subscriptions);
+    public abstract Map<String, List<TopicPartition>> assign(Map<String, Integer> partitionsPerTopic /* 每个主题的分区数量 */,
+                                                             Map<String, List<String>> subscriptions /* 每个消费者订阅的注意列表 */);
 
     @Override
     public Subscription subscription(Set<String> topics) {
@@ -47,7 +47,8 @@ public abstract class AbstractPartitionAssignor implements PartitionAssignor {
     }
 
     @Override
-    public Map<String, Assignment> assign(Cluster metadata, Map<String, Subscription> subscriptions) {
+    public Map<String, Assignment> assign(Cluster metadata /* 集群元数据 */,
+                                          Map<String, Subscription> subscriptions /* 所有消费者的订阅信息 */) {
         Set<String> allSubscribedTopics = new HashSet<>();
         Map<String, List<String>> topicSubscriptions = new HashMap<>();
         for (Map.Entry<String, Subscription> subscriptionEntry : subscriptions.entrySet()) {
