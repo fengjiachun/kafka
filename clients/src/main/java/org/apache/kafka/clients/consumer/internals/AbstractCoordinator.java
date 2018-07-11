@@ -350,7 +350,7 @@ public abstract class AbstractCoordinator implements Closeable {
             client.poll(future);
             resetJoinGroupFuture();
 
-            if (future.succeeded()) {
+            if (future.succeeded()) { // 请求成功, 根据结果处理回调
                 needsJoinPrepare = true;
                 onJoinComplete(generation.generationId, generation.memberId, generation.protocol, future.value());
             } else {
@@ -421,6 +421,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
         // send a join group request to the coordinator
         log.info("(Re-)joining group {}", groupId);
+        // 创建请求
         JoinGroupRequest.Builder requestBuilder = new JoinGroupRequest.Builder(
                 groupId,
                 this.sessionTimeoutMs,
@@ -430,7 +431,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
         log.debug("Sending JoinGroup ({}) to coordinator {}", requestBuilder, this.coordinator);
         return client.send(coordinator, requestBuilder)
-                .compose(new JoinGroupResponseHandler());
+                .compose(new JoinGroupResponseHandler()); // 发送请求
     }
 
     private class JoinGroupResponseHandler extends CoordinatorResponseHandler<JoinGroupResponse, ByteBuffer> {

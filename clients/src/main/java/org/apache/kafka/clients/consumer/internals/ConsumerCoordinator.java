@@ -141,13 +141,16 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         return ConsumerProtocol.PROTOCOL_TYPE;
     }
 
+    // 消费者创建 "加入组请求" 需要指定消费者的元数据, 比如订阅的主题
     @Override
     public List<ProtocolMetadata> metadata() {
         this.joinedSubscription = subscriptions.subscription();
         List<ProtocolMetadata> metadataList = new ArrayList<>();
         for (PartitionAssignor assignor : assignors) {
+            // 创建一个订阅状态, 包含消费者订阅的主题列表
             Subscription subscription = assignor.subscription(joinedSubscription);
             ByteBuffer metadata = ConsumerProtocol.serializeSubscription(subscription);
+            // 每个分区分配器的元数据实际上都是一样的
             metadataList.add(new ProtocolMetadata(assignor.name(), metadata));
         }
         return metadataList;

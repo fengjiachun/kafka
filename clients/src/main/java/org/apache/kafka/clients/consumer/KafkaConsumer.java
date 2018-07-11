@@ -988,7 +988,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      */
     @Override
     public ConsumerRecords<K, V> poll(long timeout) {
-        acquire();
+        acquire(); // 线程独占
         try {
             if (timeout < 0)
                 throw new IllegalArgumentException("Timeout must not be negative");
@@ -997,18 +997,18 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                 throw new IllegalStateException("Consumer is not subscribed to any topics or assigned any partitions");
 
             // poll for new data until the timeout expires
-            long start = time.milliseconds();
-            long remaining = timeout;
+            long start = time.milliseconds(); // 开始时间
+            long remaining = timeout;         // 剩余时间
             do {
                 Map<TopicPartition, List<ConsumerRecord<K, V>>> records = pollOnce(remaining);
-                if (!records.isEmpty()) {
+                if (!records.isEmpty()) { // 只要有结果就立即返回, 不会再等待了
                     // before returning the fetched records, we can send off the next round of fetches
                     // and avoid block waiting for their responses to enable pipelining while the user
                     // is handling the fetched records.
                     //
                     // NOTE: since the consumed position has already been updated, we must not allow
                     // wakeups or any other errors to be triggered prior to returning the fetched records.
-                    if (fetcher.sendFetches() > 0 || client.pendingRequestCount() > 0)
+                    if (fetcher.sendFetches() > 0 /* 发送新的请求 */ || client.pendingRequestCount() > 0)
                         client.pollNoWakeup();
 
                     if (this.interceptors == null)
@@ -1017,11 +1017,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                         return this.interceptors.onConsume(new ConsumerRecords<>(records));
                 }
 
-                long elapsed = time.milliseconds() - start;
+                long elapsed = time.milliseconds() - start; // 本次轮询花费时间
                 remaining = timeout - elapsed;
             } while (remaining > 0);
 
-            return ConsumerRecords.empty();
+            return ConsumerRecords.empty(); // 超时, 返回空记录
         } finally {
             release();
         }
@@ -1044,7 +1044,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         // if data is available already, return it immediately
         Map<TopicPartition, List<ConsumerRecord<K, V>>> records = fetcher.fetchedRecords();
         if (!records.isEmpty())
-            return records;
+            return records; // 已经有数据了, 直接返回
 
         // send any new fetches (won't resend pending fetches)
         fetcher.sendFetches(); // 发送拉取请求
@@ -1052,6 +1052,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         long now = time.milliseconds();
         long pollTimeout = Math.min(coordinator.timeToNextPoll(now), timeout);
 
+        // 通过客户端轮询把拉取请求发送出去
         client.poll(pollTimeout, now, new PollCondition() {
             @Override
             public boolean shouldBlock() {
@@ -1066,7 +1067,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         if (coordinator.needRejoin())
             return Collections.emptyMap();
 
-        return fetcher.fetchedRecords();
+        return fetcher.fetchedRecords(); // 获取结果
     }
 
     /**
@@ -1091,6 +1092,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @throws org.apache.kafka.common.KafkaException for any other unrecoverable errors (e.g. if offset metadata
      *             is too large or if the committed offset is invalid).
      */
+    // 同步提交偏移量
     @Override
     public void commitSync() {
         acquire();
@@ -1156,6 +1158,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      *
      * @param callback Callback to invoke when the commit completes
      */
+    // 异步提交偏移量
     @Override
     public void commitAsync(OffsetCommitCallback callback) {
         acquire();
@@ -1628,6 +1631,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @throws IllegalStateException if the consumer has been closed
      * @throws ConcurrentModificationException if another thread already has the lock
      */
+    // 线程独占
     private void acquire() {
         ensureNotClosed();
         long threadId = Thread.currentThread().getId();

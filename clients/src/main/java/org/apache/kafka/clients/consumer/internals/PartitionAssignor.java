@@ -32,7 +32,15 @@ import java.util.Set;
  * assignment decisions. For this, you can override {@link #subscription(Set)} and provide custom
  * userData in the returned Subscription. For example, to have a rack-aware assignor, an implementation
  * can use this user data to forward the rackId belonging to each member.
+ *
+ * 1. 消费者发送订阅信息给协调者
+ * 2. 协调者收集所有消费者已经它们的订阅信息
+ * 3. 选择第一个进来的消费者作为主消费者, 将所有消费者成员列表以及其订阅信息发送给主消费者
+ * 4. 主消费者执行具体的分区分配算法
+ * 5. 主消费者将分配结果同步回协调者
+ * 6. 协调者收到分配结果, 将分区返回给每个消费者
  */
+// 分区分配器接口, 负责执行分区分配的具体算法
 public interface PartitionAssignor {
 
     /**
@@ -43,6 +51,7 @@ public interface PartitionAssignor {
      *               and variants
      * @return Non-null subscription with optional user data
      */
+    // 每个消费者都有订阅的主题列表, Subscription是消费者的订阅信息
     Subscription subscription(Set<String> topics);
 
     /**
@@ -52,6 +61,7 @@ public interface PartitionAssignor {
      * @return A map from the members to their respective assignment. This should have one entry
      *         for all members who in the input subscription map.
      */
+    // 只有主消费者会调用 assign(), 其中 subscriptions 是所有消费者的调用信息
     Map<String, Assignment> assign(Cluster metadata, Map<String, Subscription> subscriptions);
 
 
@@ -59,6 +69,7 @@ public interface PartitionAssignor {
      * Callback which is invoked when a group member receives its assignment from the leader.
      * @param assignment The local member's assignment as provided by the leader in {@link #assign(Cluster, Map)}
      */
+    // 分配到结果后的回调处理
     void onAssignment(Assignment assignment);
 
 
@@ -68,6 +79,7 @@ public interface PartitionAssignor {
      */
     String name();
 
+    // 消费者的订阅信息, 即订阅了哪些主题
     class Subscription {
         private final List<String> topics;
         private final ByteBuffer userData;
@@ -97,6 +109,7 @@ public interface PartitionAssignor {
         }
     }
 
+    // 消费者的分配结果, 即分配了哪些分区
     class Assignment {
         private final List<TopicPartition> partitions;
         private final ByteBuffer userData;
