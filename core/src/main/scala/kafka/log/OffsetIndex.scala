@@ -83,9 +83,9 @@ class OffsetIndex(file: File, baseOffset: Long, maxIndexSize: Int = -1)
    *         the pair (baseOffset, 0) is returned.
    */
   def lookup(targetOffset: Long): OffsetPosition = {
-    maybeLock(lock) {
+    maybeLock(lock) { // 只有windows才上锁
       val idx = mmap.duplicate
-      val slot = indexSlotFor(idx, targetOffset, IndexSearchType.KEY)
+      val slot = indexSlotFor(idx, targetOffset, IndexSearchType.KEY) // 二分法查找
       if(slot == -1)
         OffsetPosition(baseOffset, 0)
       else
@@ -93,12 +93,16 @@ class OffsetIndex(file: File, baseOffset: Long, maxIndexSize: Int = -1)
     }
   }
 
+  // 获取索引文件第n个索引条目的相对偏移量
   private def relativeOffset(buffer: ByteBuffer, n: Int): Int = buffer.getInt(n * entrySize)
 
+  // 获取索引文件第n个索引条目的物理位置
   private def physical(buffer: ByteBuffer, n: Int): Int = buffer.getInt(n * entrySize + 4)
 
   override def parseEntry(buffer: ByteBuffer, n: Int): IndexEntry = {
-      OffsetPosition(baseOffset + relativeOffset(buffer, n), physical(buffer, n))
+      OffsetPosition(
+        baseOffset + relativeOffset(buffer, n) /* 基准偏移量加上相对偏移量 */,
+        physical(buffer, n) /* 绝对偏移量在数据文件中对应的物理位置 */)
   }
   
   /**

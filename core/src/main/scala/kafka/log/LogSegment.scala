@@ -139,9 +139,12 @@ class LogSegment(val log: FileRecords,
    * @return The position in the log storing the message with the least offset >= the requested offset and the size of the
     *        message or null if no message meets this criteria.
    */
+  // 日志分段将起始偏移量转换为文件的起始物理位置
   @threadsafe
   private[log] def translateOffset(offset: Long, startingFilePosition: Int = 0): LogEntryPosition = {
+    // 查询索引文件, 返回值包含偏移量和物理位置, 但不一定准确对应到起始偏移量
     val mapping = index.lookup(offset)
+    // 搜索数据文件, 返回值包含偏移量和物理位置, 但不一定准确对应到起始偏移量
     log.searchForOffsetWithSize(offset, max(mapping.position, startingFilePosition))
   }
 
@@ -183,7 +186,7 @@ class LogSegment(val log: FileRecords,
       return FetchDataInfo(offsetMetadata, MemoryRecords.EMPTY)
 
     // calculate the length of the message set to read based on whether or not they gave us a maxOffset
-    val length = maxOffset match {
+    val length = maxOffset match { // 计算要读取多长的消息
       case None =>
         // no max offset, just read until the max position
         min((maxPosition - startPosition).toInt, adjustedMaxSize)
