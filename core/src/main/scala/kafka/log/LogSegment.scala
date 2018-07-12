@@ -68,6 +68,7 @@ class LogSegment(val log: FileRecords,
   @volatile private var maxTimestampSoFar = timeIndex.lastEntry.timestamp
   @volatile private var offsetOfMaxTimestamp = timeIndex.lastEntry.offset
 
+   // 创建新的日志分段, 会创建日志文件和索引文件, 它们的文件名都已基准偏移量开头
   def this(dir: File, startOffset: Long, indexIntervalBytes: Int, maxIndexSize: Int, rollJitterMs: Long, time: Time, fileAlreadyExists: Boolean = false, initFileSize: Int = 0, preallocate: Boolean = false) =
     this(FileRecords.open(Log.logFile(dir, startOffset), fileAlreadyExists, initFileSize, preallocate),
          new OffsetIndex(Log.indexFilename(dir, startOffset), baseOffset = startOffset, maxIndexSize = maxIndexSize),
@@ -98,6 +99,7 @@ class LogSegment(val log: FileRecords,
    * @param shallowOffsetOfMaxTimestamp The offset of the message that has the largest timestamp in the messages to append.
    * @param records The log entries to append.
    */
+   // 追加消息到日志分段, 会写入数据文件, 并在必要时写入索引文件
   @nonthreadsafe
   def append(firstOffset: Long, largestOffset: Long, largestTimestamp: Long, shallowOffsetOfMaxTimestamp: Long, records: MemoryRecords) {
     if (records.sizeInBytes > 0) {
@@ -108,7 +110,7 @@ class LogSegment(val log: FileRecords,
         rollingBasedTimestamp = Some(largestTimestamp)
       // append the messages
       require(canConvertToRelativeOffset(largestOffset), "largest offset in message set can not be safely converted to relative offset.")
-      val appendedBytes = log.append(records)
+      val appendedBytes = log.append(records) // 追加消息到数据文件中
       trace(s"Appended $appendedBytes to ${log.file()} at offset $firstOffset")
       // Update the in memory max timestamp and corresponding offset.
       if (largestTimestamp > maxTimestampSoFar) {
@@ -117,9 +119,9 @@ class LogSegment(val log: FileRecords,
       }
       // append an entry to the index (if needed)
       if(bytesSinceLastIndexEntry > indexIntervalBytes) {
-        index.append(firstOffset, physicalPosition)
+        index.append(firstOffset, physicalPosition) // 添加一条索引目录 mmap 稀疏索引, 二分法查找
         timeIndex.maybeAppend(maxTimestampSoFar, offsetOfMaxTimestamp)
-        bytesSinceLastIndexEntry = 0
+        bytesSinceLastIndexEntry = 0 // 成功写一次索引后, 重置为0
       }
       bytesSinceLastIndexEntry += records.sizeInBytes
     }

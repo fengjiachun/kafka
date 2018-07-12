@@ -123,8 +123,8 @@ class OffsetIndex(file: File, baseOffset: Long, maxIndexSize: Int = -1)
       require(!isFull, "Attempt to append to a full index (size = " + _entries + ").")
       if (_entries == 0 || offset > _lastOffset) {
         debug("Adding index entry %d => %d to %s.".format(offset, position, file.getName))
-        mmap.putInt((offset - baseOffset).toInt)
-        mmap.putInt(position)
+        mmap.putInt((offset - baseOffset).toInt) // 相对偏移量
+        mmap.putInt(position) // 物理位置
         _entries += 1
         _lastOffset = offset
         require(_entries * entrySize == mmap.position, entries + " entries but file position in index is " + mmap.position + ".")

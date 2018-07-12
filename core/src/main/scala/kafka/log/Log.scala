@@ -85,6 +85,7 @@ case class LogAppendInfo(var firstOffset: Long,
  * @param time The time instance used for checking the clock
  *
  */
+// 日志管理了所有日志分段, 并在需要时滚动创建新的日志分段, 来存储新追加的消息
 @threadsafe
 class Log(@volatile var dir: File,
           @volatile var config: LogConfig,
@@ -551,7 +552,8 @@ class Log(@volatile var dir: File,
    * @throws OffsetOutOfRangeException If startOffset is beyond the log end offset or before the base offset of the first segment.
    * @return The fetch data information including fetch starting offset metadata and messages read.
    */
-  def read(startOffset: Long, maxLength: Int, maxOffset: Option[Long] = None, minOneMessage: Boolean = false): FetchDataInfo = {
+  // 从指定的起始偏移量来读取日志
+  def read(startOffset: Long, maxLength: Int /* fetchSize, 默认1MB */, maxOffset: Option[Long] = None /* 最大偏移量 */, minOneMessage: Boolean = false): FetchDataInfo = {
     trace("Reading %d bytes from offset %d in log %s of length %d bytes".format(maxLength, startOffset, name, size))
 
     // Because we don't use lock for reading, the synchronization is a little bit tricky.
@@ -561,6 +563,7 @@ class Log(@volatile var dir: File,
     if(startOffset == next)
       return FetchDataInfo(currentNextOffsetMetadata, MemoryRecords.EMPTY)
 
+    // 查找日志分段, 跳跃表查找
     var entry = segments.floorEntry(startOffset)
 
     // attempt to read beyond the log end offset is an error
@@ -589,7 +592,7 @@ class Log(@volatile var dir: File,
         }
       }
       val fetchInfo = entry.getValue.read(startOffset, maxOffset, maxLength, maxPosition, minOneMessage)
-      if(fetchInfo == null) {
+      if(fetchInfo == null) { // 如果日志分段没有读取到数据, 会读取更高的分段
         entry = segments.higherEntry(entry.getKey)
       } else {
         return fetchInfo
@@ -759,8 +762,9 @@ class Log(@volatile var dir: File,
    * </ol>
    * @return The currently active segment after (perhaps) rolling to a new segment
    */
+  // 根据消息大小, 判断是否需要创建新的日志分段, 如果不需要, 返回现有日志分段
   private def maybeRoll(messagesSize: Int, maxTimestampInMessages: Long, maxOffsetInMessages: Long): LogSegment = {
-    val segment = activeSegment
+    val segment = activeSegment // 以最后一个分段看是否达到滚动条件
     val now = time.milliseconds
     val reachedRollMs = segment.timeWaitedForRoll(now, maxTimestampInMessages) > config.segmentMs - segment.rollJitterMs
     if (segment.size > config.segmentSize - messagesSize ||
@@ -780,9 +784,9 @@ class Log(@volatile var dir: File,
         base offset was too low to contain the next message.  This edge case is possible when a replica is recovering a
         highly compacted topic from scratch.
        */
-      roll(maxOffsetInMessages - Integer.MAX_VALUE)
+      roll(maxOffsetInMessages - Integer.MAX_VALUE) // 创建新的日志分段
     } else {
-      segment
+      segment // 使用当前的日志分段
     }
   }
 
@@ -792,10 +796,11 @@ class Log(@volatile var dir: File,
    *
    * @return The newly rolled segment
    */
+  // 创建新的日志分段, 并添加到日志管理的segments中
   def roll(expectedNextOffset: Long = 0): LogSegment = {
     val start = time.nanoseconds
     lock synchronized {
-      val newOffset = Math.max(expectedNextOffset, logEndOffset)
+      val newOffset = Math.max(expectedNextOffset, logEndOffset) // 最新偏移量, 作为日志分段的基准偏移量
       val logFile = Log.logFile(dir, newOffset)
       val indexFile = indexFilename(dir, newOffset)
       val timeIndexFile = timeIndexFilename(dir, newOffset)
@@ -828,13 +833,13 @@ class Log(@volatile var dir: File,
         throw new KafkaException("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.".format(name, newOffset))
       // We need to update the segment base offset and append position data of the metadata when log rolls.
       // The next offset should not change.
-      updateLogEndOffset(nextOffsetMetadata.messageOffset)
+      updateLogEndOffset(nextOffsetMetadata.messageOffset) // 只更新偏移量
       // schedule an asynchronous flush of the old segment
       scheduler.schedule("flush-log", () => flush(newOffset), delay = 0L)
 
       info("Rolled new log segment for '" + name + "' in %.0f ms.".format((System.nanoTime - start) / (1000.0*1000.0)))
 
-      segment
+      segment // 返回值是新创建的日志分段
     }
   }
 
