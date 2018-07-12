@@ -154,23 +154,34 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
   this.logIdent = "[Controller " + config.brokerId + "]: "
   private var isRunning = true
   private val stateChangeLogger = KafkaController.stateChangeLogger
+  // 控制器上下文数据, 启动控制器时从ZK初始化数据
   val controllerContext = new ControllerContext(zkUtils)
+  // 分区状态机, 管理分区状态
   val partitionStateMachine = new PartitionStateMachine(this)
+  // 副本状态机, 管理副本状态
   val replicaStateMachine = new ReplicaStateMachine(this)
+  // 通过ZK选举主控制器
   private val controllerElector = new ZookeeperLeaderElector(controllerContext, ZkUtils.ControllerPath, onControllerFailover,
     onControllerResignation, config.brokerId, time)
   // have a separate scheduler for the controller to be able to start and stop independently of the
   // kafka server
+  // 自动平衡调度器, 平衡分区的分布
   private val autoRebalanceScheduler = new KafkaScheduler(1)
+  // 删除主题的管理器
   var deleteTopicManager: TopicDeletionManager = null
+  // 选举分区的主副本
   val offlinePartitionSelector = new OfflinePartitionLeaderSelector(controllerContext, config)
   private val reassignedPartitionLeaderSelector = new ReassignedPartitionLeaderSelector(controllerContext)
   private val preferredReplicaPartitionLeaderSelector = new PreferredReplicaPartitionLeaderSelector(controllerContext)
   private val controlledShutdownPartitionLeaderSelector = new ControlledShutdownLeaderSelector(controllerContext)
+  // 控制器以批量请求的方式发送给代理节点
   private val brokerRequestBatch = new ControllerBrokerRequestBatch(this)
 
+  // 重新分配分区
   private val partitionReassignedListener = new PartitionsReassignedListener(this)
+  // 选举最优的副本作为分区主副本
   private val preferredReplicaElectionListener = new PreferredReplicaElectionListener(this)
+  // ISR发生变化时的监听器, 更新元数据
   private val isrChangeNotificationListener = new IsrChangeNotificationListener(this)
 
   newGauge(
@@ -317,6 +328,7 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
    * If it encounters any unexpected exception/error while becoming controller, it resigns as the current controller.
    * This ensures another controller election will be triggered and there will always be an actively serving controller
    */
+  // 代理节点被选为主控制器时调用
   def onControllerFailover() {
     if(isRunning) {
       info("Broker %d starting become controller state transition".format(config.brokerId))
@@ -363,6 +375,7 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
    * required to clean up internal controller data structures
    * Note:We need to resign as a controller out of the controller lock to avoid potential deadlock issue
    */
+  // 代理节点被剥夺主控制器时调用
   def onControllerResignation() {
     debug("Controller resigning, broker id %d".format(config.brokerId))
     // de-register listeners
@@ -673,12 +686,13 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
    * is the controller. It merely registers the session expiration listener and starts the controller leader
    * elector
    */
+  // 启动控制器, 先注册会话失效监听器, 然后开始选举
   def startup() = {
     inLock(controllerContext.controllerLock) {
       info("Controller starting up")
-      registerSessionExpirationListener()
+      registerSessionExpirationListener() // 注册会话失效监听器
       isRunning = true
-      controllerElector.startup
+      controllerElector.startup // 启动选举
       info("Controller startup complete")
     }
   }
@@ -1167,7 +1181,7 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
      * @throws Exception On any error.
      */
     @throws[Exception]
-    def handleNewSession() {
+    def handleNewSession() { // 会话超时, 重新开始选举
       info("ZK expired; shut down all controller components and try to re-elect")
       if (controllerElector.getControllerID() != config.brokerId) {
         onControllerResignation()
