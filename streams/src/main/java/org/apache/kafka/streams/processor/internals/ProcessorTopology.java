@@ -27,10 +27,10 @@ import java.util.Set;
 
 public class ProcessorTopology {
 
-    private final List<ProcessorNode> processorNodes;
+    private final List<ProcessorNode> processorNodes; // 所有的处理节点
     private final List<StateStore> stateStores;
     private final List<StateStore> globalStateStores;
-    private final Map<String, SourceNode> sourceByTopics;
+    private final Map<String, SourceNode> sourceByTopics; // 输入主题与源节点的关系
     private final Map<String, SinkNode> sinkByTopics;
     private final Map<String, String> storeToChangelogTopic;
 

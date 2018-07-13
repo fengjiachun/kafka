@@ -119,6 +119,14 @@ import static org.apache.kafka.streams.KafkaStreams.State.RUNNING;
  * @see KStreamBuilder
  * @see TopologyBuilder
  */
+// 通常一个节点只运行一个流实例
+//
+// Kafka流处理线程模型的核心:
+// 1. 将输入主题的分区分配给流实例上不同的流线程;
+// 2. 每个流线程都有一个内置的消费者, 记录缓冲区以及生产者;
+// 3. 其中消费者会读取输入主题的数据, 将拉取结果暂存到记录缓冲区;
+// 4. 流线程中的流任务从记录缓冲区中读取数据, 并让每条数据经过流处理的拓扑计算;
+// 5. 最后, 流任务的计算结果通过生产者写入到输出主题
 @InterfaceStability.Unstable
 public class KafkaStreams {
 
@@ -127,7 +135,7 @@ public class KafkaStreams {
     private static final int DEFAULT_CLOSE_TIMEOUT = 0;
     private GlobalStreamThread globalStreamThread;
 
-    private final StreamThread[] threads;
+    private final StreamThread[] threads; // 一个流实例可以配置多个流线程
     private final Map<Long, StreamThread.State> threadState;
     private final Metrics metrics;
     private final QueryableStoreProvider queryableStoreProvider;

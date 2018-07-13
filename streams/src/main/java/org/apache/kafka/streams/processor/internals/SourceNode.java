@@ -23,11 +23,12 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 
 import java.util.List;
 
+// 源节点
 public class SourceNode<K, V> extends ProcessorNode<K, V> {
 
     private final List<String> topics;
 
-    private ProcessorContext context;
+    private ProcessorContext context; // 上下文
     private Deserializer<K> keyDeserializer;
     private Deserializer<V> valDeserializer;
 

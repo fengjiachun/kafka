@@ -31,12 +31,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+// 处理节点
 public class ProcessorNode<K, V> {
 
-    private final List<ProcessorNode<?, ?>> children;
+    private final List<ProcessorNode<?, ?>> children; // 子节点
 
-    private final String name;
-    private final Processor<K, V> processor;
+    private final String name; // 节点名称
+    private final Processor<K, V> processor; // 处理器
     NodeMetrics nodeMetrics;
     private Time time;
 
@@ -74,7 +75,7 @@ public class ProcessorNode<K, V> {
         }
     };
 
-    public final Set<String> stateStores;
+    public final Set<String> stateStores; // 状态存储
 
     public ProcessorNode(String name) {
         this(name, null, null);

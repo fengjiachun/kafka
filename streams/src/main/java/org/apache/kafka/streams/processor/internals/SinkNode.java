@@ -23,14 +23,15 @@ import org.apache.kafka.streams.kstream.internals.ChangedSerializer;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StreamPartitioner;
 
+// 目标节点
 public class SinkNode<K, V> extends ProcessorNode<K, V> {
 
-    private final String topic;
+    private final String topic; // 写入的主题
     private Serializer<K> keySerializer;
     private Serializer<V> valSerializer;
-    private final StreamPartitioner<? super K, ? super V> partitioner;
+    private final StreamPartitioner<? super K, ? super V> partitioner; // 写入的分区方式
 
-    private ProcessorContext context;
+    private ProcessorContext context; // 上下文
 
     public SinkNode(String name, String topic, Serializer<K> keySerializer, Serializer<V> valSerializer, StreamPartitioner<? super K, ? super V> partitioner) {
         super(name);
@@ -65,7 +66,7 @@ public class SinkNode<K, V> extends ProcessorNode<K, V> {
             ((ChangedSerializer) this.valSerializer).setInner(context.valueSerde().serializer());
     }
 
-
+    // 通过上下文的记录收集器发送消息到目标主题
     @Override
     public void process(final K key, final V value) {
         RecordCollector collector = ((RecordCollector.Supplier) context).recordCollector();
