@@ -66,7 +66,7 @@ import java.util.regex.Pattern;
 
 import static java.util.Collections.singleton;
 
-public class StreamThread extends Thread {
+public class  StreamThread extends Thread {
 
     private static final Logger log = LoggerFactory.getLogger(StreamThread.class);
     private static final AtomicInteger STREAM_THREAD_ID_SEQUENCE = new AtomicInteger(1);
@@ -217,18 +217,21 @@ public class StreamThread extends Thread {
 
     protected final StreamsConfig config;
     protected final TopologyBuilder builder;
-    protected final Producer<byte[], byte[]> producer;
-    protected final Consumer<byte[], byte[]> consumer;
-    protected final Consumer<byte[], byte[]> restoreConsumer;
+    protected final Producer<byte[], byte[]> producer; // 生产者
+    protected final Consumer<byte[], byte[]> consumer; // 消费者
+    protected final Consumer<byte[], byte[]> restoreConsumer; // 用来回复状态的消费者
 
     private final String logPrefix;
     private final String threadClientId;
     private final Pattern sourceTopicPattern;
+    // 活动的任务, 流线程中的流任务集合, 流线程通过消费组的管理协议可以分配到多个流任务
     private final Map<TaskId, StreamTask> activeTasks;
-    private final Map<TaskId, StandbyTask> standbyTasks;
-    private final Map<TopicPartition, StreamTask> activeTasksByPartition;
+    private final Map<TaskId, StandbyTask> standbyTasks; // 备份任务
+    // 记录了分区与流任务的对应关系, 因为每条消费记录的分区是固定的, 所以一旦确定分区与流任务的关系,
+    // 消费记录交给哪个流任务处理也是固定的
+    private final Map<TopicPartition, StreamTask> activeTasksByPartition; // 分区对应的流任务
     private final Map<TopicPartition, StandbyTask> standbyTasksByPartition;
-    private final Set<TaskId> prevTasks;
+    private final Set<TaskId> prevTasks; // 上一次的任务集
     private final Map<TaskId, StreamTask> suspendedTasks;
     private final Map<TaskId, StandbyTask> suspendedStandbyTasks;
     private final Time time;
@@ -249,10 +252,11 @@ public class StreamThread extends Thread {
     private Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> standbyRecords;
     private boolean processStandbyRecords = false;
 
-    private ThreadCache cache;
+    private ThreadCache cache; // 线程缓存
 
     private final TaskCreator taskCreator = new TaskCreator();
 
+    // 流线程消费者再平衡监听器
     final ConsumerRebalanceListener rebalanceListener = new ConsumerRebalanceListener() {
         @Override
         public void onPartitionsAssigned(Collection<TopicPartition> assignment) {
@@ -264,8 +268,8 @@ public class StreamThread extends Thread {
                 // will become active or vice versa
                 closeNonAssignedSuspendedStandbyTasks();
                 closeNonAssignedSuspendedTasks();
-                addStreamTasks(assignment);
-                addStandbyTasks();
+                addStreamTasks(assignment); // 根据分配的分区创建流任务
+                addStandbyTasks(); // 添加用于恢复本地状态的备份任务
                 lastCleanMs = time.milliseconds(); // start the cleaning cycle
                 streamsMetadataState.onChange(partitionAssignor.getPartitionsByHostState(), partitionAssignor.clusterMetadata());
                 setState(State.RUNNING);
@@ -288,8 +292,8 @@ public class StreamThread extends Thread {
                 throw t;
             } finally {
                 streamsMetadataState.onChange(Collections.<HostInfo, Set<TopicPartition>>emptyMap(), partitionAssignor.clusterMetadata());
-                removeStreamTasks();
-                removeStandbyTasks();
+                removeStreamTasks(); // 移除活动的流任务
+                removeStandbyTasks(); // 移除备份任务
             }
         }
     };
@@ -612,13 +616,13 @@ public class StreamThread extends Thread {
         boolean requiresPoll = true;
         boolean polledRecords = false;
 
-        consumer.subscribe(sourceTopicPattern, rebalanceListener);
+        consumer.subscribe(sourceTopicPattern, rebalanceListener); // 订阅
 
         while (stillRunning()) {
             this.timerStartedMs = time.milliseconds();
 
             // try to fetch some records if necessary
-            if (requiresPoll) {
+            if (requiresPoll) { // 判断是否有必要再发起轮询, 拉取一批新的消费记录
                 requiresPoll = false;
 
                 boolean longPoll = totalNumBuffered == 0;
@@ -661,13 +665,13 @@ public class StreamThread extends Thread {
                 if (!activeTasks.isEmpty()) {
                     for (StreamTask task : activeTasks.values()) {
 
-                        totalNumBuffered += task.process();
+                        totalNumBuffered += task.process(); // 处理任务, 一次处理一条记录
 
-                        requiresPoll = requiresPoll || task.requiresPoll();
+                        requiresPoll = requiresPoll || task.requiresPoll(); // 更新是否需要轮询
 
                         streamsMetrics.processTimeSensor.record(computeLatency());
 
-                        maybePunctuate(task);
+                        maybePunctuate(task); // 定时调用, 任务级别
 
                         if (task.commitNeeded())
                             commitOne(task);

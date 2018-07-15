@@ -39,6 +39,7 @@ import java.util.Set;
  * number of partitions. Copartitioning is ensured by having the same number of partitions on
  * joined topics, and by using the serialization and Producer's default partitioner.
  */
+// 分区分组
 public class DefaultPartitionGrouper implements PartitionGrouper {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultPartitionGrouper.class);
@@ -53,7 +54,7 @@ public class DefaultPartitionGrouper implements PartitionGrouper {
         Map<TaskId, Set<TopicPartition>> groups = new HashMap<>();
 
         for (Map.Entry<Integer, Set<String>> entry : topicGroups.entrySet()) {
-            Integer topicGroupId = entry.getKey();
+            Integer topicGroupId = entry.getKey(); // 跟拓扑有关, 不同拓扑的组编号不同
             Set<String> topicGroup = entry.getValue();
 
             int maxNumPartitions = maxNumPartitions(metadata, topicGroup);
@@ -63,6 +64,7 @@ public class DefaultPartitionGrouper implements PartitionGrouper {
 
                 for (String topic : topicGroup) {
                     List<PartitionInfo> partitions = metadata.partitionsForTopic(topic);
+                    // 有多个输入主题时, 它们的分区数不一定总相等
                     if (partitions != null && partitionId < partitions.size()) {
                         group.add(new TopicPartition(topic, partitionId));
                     }
