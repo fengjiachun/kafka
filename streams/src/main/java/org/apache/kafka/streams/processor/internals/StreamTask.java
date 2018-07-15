@@ -50,14 +50,14 @@ public class StreamTask extends AbstractTask implements Punctuator {
     private static final ConsumerRecord<Object, Object> DUMMY_RECORD = new ConsumerRecord<>(ProcessorContextImpl.NONEXIST_TOPIC, -1, -1L, null, null);
 
     private final String logPrefix;
-    private final PartitionGroup partitionGroup;
-    private final PartitionGroup.RecordInfo recordInfo = new PartitionGroup.RecordInfo();
-    private final PunctuationQueue punctuationQueue;
+    private final PartitionGroup partitionGroup; // 分区组
+    private final PartitionGroup.RecordInfo recordInfo = new PartitionGroup.RecordInfo(); // 记录信息
+    private final PunctuationQueue punctuationQueue; // 定时队列
     private final Map<TopicPartition, RecordQueue> partitionQueues;
 
-    private final Map<TopicPartition, Long> consumedOffsets;
-    private final RecordCollector recordCollector;
-    private final int maxBufferedSize;
+    private final Map<TopicPartition, Long> consumedOffsets; // 分区的偏移量
+    private final RecordCollector recordCollector; // 记录收集器
+    private final int maxBufferedSize; // 缓冲区大小
 
     private boolean commitRequested = false;
     private boolean commitOffsetNeeded = false;
@@ -118,9 +118,9 @@ public class StreamTask extends AbstractTask implements Punctuator {
         TimestampExtractor timestampExtractor = config.getConfiguredInstance(StreamsConfig.TIMESTAMP_EXTRACTOR_CLASS_CONFIG, TimestampExtractor.class);
 
         for (TopicPartition partition : partitions) {
-            SourceNode source = topology.source(partition.topic());
+            SourceNode source = topology.source(partition.topic()); // 源节点
             RecordQueue queue = createRecordQueue(partition, source, timestampExtractor);
-            partitionQueues.put(partition, queue);
+            partitionQueues.put(partition, queue); // 每个分区都有一个记录队列
         }
 
         this.logPrefix = String.format("task [%s]", id);
@@ -132,7 +132,7 @@ public class StreamTask extends AbstractTask implements Punctuator {
         this.consumedOffsets = new HashMap<>();
 
         // create the record recordCollector that maintains the produced offsets
-        this.recordCollector = recordCollector;
+        this.recordCollector = recordCollector; // 记录收集器
 
         // initialize the topology with its own context
         this.processorContext = new ProcessorContextImpl(id, this, config, this.recordCollector, stateMgr, metrics, cache);
@@ -189,18 +189,18 @@ public class StreamTask extends AbstractTask implements Punctuator {
 
         try {
             // process the record by passing to the source node of the topology
-            final ProcessorNode currNode = recordInfo.node();
+            final ProcessorNode currNode = recordInfo.node(); // 流处理拓扑源节点
             TopicPartition partition = recordInfo.partition();
 
             log.trace("{} Start processing one record [{}]", logPrefix, record);
             final ProcessorRecordContext recordContext = createRecordContext(record);
             updateProcessorContext(recordContext, currNode);
-            currNode.process(record.key(), record.value());
+            currNode.process(record.key(), record.value()); // 处理一条记录
 
             log.trace("{} Completed processing one record [{}]", logPrefix, record);
 
             // update the consumed offset map after processing is done
-            consumedOffsets.put(partition, record.offset());
+            consumedOffsets.put(partition, record.offset()); // 更新偏移量
             commitOffsetNeeded = true;
 
             // after processing this record, if its partition queue's buffered size has been

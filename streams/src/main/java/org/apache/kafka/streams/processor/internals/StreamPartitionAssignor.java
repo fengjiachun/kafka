@@ -287,6 +287,7 @@ public class StreamPartitionAssignor implements PartitionAssignor, Configurable 
         Map<UUID, ClientMetadata> clientsMetadata = new HashMap<>();
 
         int minUserMetadataVersion = SubscriptionInfo.CURRENT_VERSION;
+        // 解析订阅信息中的自定义数据, 添加到处理器编号对应的客户端状态
         for (Map.Entry<String, Subscription> entry : subscriptions.entrySet()) {
             String consumerId = entry.getKey();
             Subscription subscription = entry.getValue();

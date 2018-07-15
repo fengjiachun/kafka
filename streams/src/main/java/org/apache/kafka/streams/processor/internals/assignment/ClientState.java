@@ -26,11 +26,11 @@ public class ClientState<T> {
     final static double COST_STANDBY  = 0.2;
     final static double COST_LOAD = 0.5;
 
-    public final Set<T> activeTasks;
+    public final Set<T> activeTasks; // 本次流任务集
     public final Set<T> standbyTasks;
-    public final Set<T> assignedTasks;
-    public final Set<T> prevActiveTasks;
-    public final Set<T> prevAssignedTasks;
+    public final Set<T> assignedTasks; // 本次分配的任务集
+    public final Set<T> prevActiveTasks; // 上一次分配的流任务集
+    public final Set<T> prevAssignedTasks; // 上一次分配的任务集
 
     public double capacity;
     public double cost;
