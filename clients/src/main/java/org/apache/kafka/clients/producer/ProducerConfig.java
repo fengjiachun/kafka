@@ -59,6 +59,7 @@ public class ProducerConfig extends AbstractConfig {
     public static final String METADATA_MAX_AGE_CONFIG = CommonClientConfigs.METADATA_MAX_AGE_CONFIG;
     private static final String METADATA_MAX_AGE_DOC = CommonClientConfigs.METADATA_MAX_AGE_DOC;
 
+    // 发送的时候, 可以批量发送的数据量, 缺省为16K
     /** <code>batch.size</code> */
     public static final String BATCH_SIZE_CONFIG = "batch.size";
     private static final String BATCH_SIZE_DOC = "The producer will attempt to batch records together into fewer requests whenever multiple records are being sent"
@@ -102,6 +103,10 @@ public class ProducerConfig extends AbstractConfig {
                                               + "requested number of acknowledgments are not met when the timeout elapses an error will be returned. This timeout "
                                               + "is measured on the server side and does not include the network latency of the request.";
 
+    // 最长等待时间, 批量发送, 缺省为 0
+    // 类似TCP/IP协议中的linger algorithm, > 0 表示发送的请求, 会在队列中积累, 然后批量发送.
+    //
+    // 很显然, 异步发送可以提高发送的性能, 但一旦客户端挂了, 就可能丢数据.
     /** <code>linger.ms</code> */
     public static final String LINGER_MS_CONFIG = "linger.ms";
     private static final String LINGER_MS_DOC = "The producer groups together any records that arrive in between request transmissions into a single batched request. "
@@ -124,6 +129,8 @@ public class ProducerConfig extends AbstractConfig {
     /** <code>receive.buffer.bytes</code> */
     public static final String RECEIVE_BUFFER_CONFIG = CommonClientConfigs.RECEIVE_BUFFER_CONFIG;
 
+    // 消息的最大长度, 缺省为1M
+    // 这个参数会影响batch的大小, 如果单个消息的大小 > batch的最大值(16k), 那么batch会相应的增大
     /** <code>max.request.size</code> */
     public static final String MAX_REQUEST_SIZE_CONFIG = "max.request.size";
     private static final String MAX_REQUEST_SIZE_DOC = "The maximum size of a request in bytes. This is also effectively a cap on the maximum record size. Note that the server "
@@ -139,6 +146,7 @@ public class ProducerConfig extends AbstractConfig {
                                                     + "These methods can be blocked either because the buffer is full or metadata unavailable."
                                                     + "Blocking in the user-supplied serializers or partitioner will not be counted against this timeout.";
 
+    // 队列满了, 客户端是阻塞, 还是抛异常出来 (缺省是true)
     /** <code>block.on.buffer.full</code> */
     /**
      * @deprecated This config will be removed in a future release. Please use {@link #MAX_BLOCK_MS_CONFIG}.
@@ -152,6 +160,7 @@ public class ProducerConfig extends AbstractConfig {
                                                            + "<p>This parameter is deprecated and will be removed in a future release. "
                                                            + "Parameter <code>" + MAX_BLOCK_MS_CONFIG + "</code> should be used instead.";
 
+    // 队列的最大长度, 缺省为32M
     /** <code>buffer.memory</code> */
     public static final String BUFFER_MEMORY_CONFIG = "buffer.memory";
     private static final String BUFFER_MEMORY_DOC = "The total bytes of memory the producer can use to buffer records waiting to be sent to the server. If records are "

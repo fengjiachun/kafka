@@ -64,7 +64,7 @@ public final class RecordAccumulator {
     private volatile boolean closed;
     private final AtomicInteger flushesInProgress;
     private final AtomicInteger appendsInProgress;
-    private final int batchSize;
+    private final int batchSize; // 发送的时候, 可以批量发送的数据量
     private final CompressionType compression;
     private final long lingerMs;
     private final long retryBackoffMs;
