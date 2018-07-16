@@ -62,7 +62,7 @@ public class SubscriptionState {
     /* the pattern user has requested */
     private Pattern subscribedPattern;
 
-    // 用户注册的主题
+    // 对应subscribe模式, 用户注册的主题
     /* the list of topics the user has requested */
     private Set<String> subscription;
 
@@ -70,7 +70,7 @@ public class SubscriptionState {
     /* the list of topics the group has subscribed to (set only for the leader on join group completion) */
     private final Set<String> groupSubscription;
 
-    // 分配和订阅方式都用assignment来存储消费者当前分配的分区及其状态
+    // 对应assign模式, 分配和订阅方式都用assignment来存储消费者当前分配的分区及其状态
     /* the partitions that are currently assigned, note that the order of partition matters (see FetchBuilder for more details) */
     private final PartitionStates<TopicPartitionState> assignment;
 

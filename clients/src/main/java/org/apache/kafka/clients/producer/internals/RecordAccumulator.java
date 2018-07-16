@@ -57,6 +57,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * The accumulator uses a bounded amount of memory and append calls will block when that memory is exhausted, unless
  * this behavior is explicitly disabled.
  */
+// RecordAccumulator最大的一个特性就是batch消息, 扔到队列中的多个消息, 可能组成一个RecordBatch, 然后由Sender一次性发送出去.
 public final class RecordAccumulator {
 
     private static final Logger log = LoggerFactory.getLogger(RecordAccumulator.class);
@@ -70,6 +71,7 @@ public final class RecordAccumulator {
     private final long retryBackoffMs;
     private final BufferPool free;
     private final Time time;
+    // 每个TopicPartition对应一个消息队列, 只有同一个TopicPartition的消息, 才可能被batch.
     private final ConcurrentMap<TopicPartition, Deque<RecordBatch>> batches;
     private final IncompleteRecordBatches incomplete;
     // The following variables are only accessed by the sender thread, so we don't need to protect them.

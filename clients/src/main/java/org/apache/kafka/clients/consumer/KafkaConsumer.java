@@ -514,12 +514,10 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     static final long DEFAULT_CLOSE_TIMEOUT_MS = 30 * 1000;
 
     private final String clientId;
-    // 消费者的协调者
-    private final ConsumerCoordinator coordinator;
+    private final ConsumerCoordinator coordinator; // 消费者的协调者
     private final Deserializer<K> keyDeserializer;
     private final Deserializer<V> valueDeserializer;
-    // 拉取器
-    private final Fetcher<K, V> fetcher;
+    private final Fetcher<K, V> fetcher; // 拉取器
     private final ConsumerInterceptors<K, V> interceptors;
 
     private final Time time;
@@ -879,6 +877,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      *                 subscribed topics
      * @throws IllegalArgumentException If pattern is null
      */
+    // Partition 自动分配, 和assign互斥
     @Override
     public void subscribe(Pattern pattern, ConsumerRebalanceListener listener) {
         acquire();
@@ -926,7 +925,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @param partitions The list of partitions to assign this consumer
      * @throws IllegalArgumentException If partitions is null or contains null or empty topics
      */
-    // 手动分配分区
+    // Partition 手动分配, 和subscribe互斥
     @Override
     public void assign(Collection<TopicPartition> partitions) {
         acquire();
@@ -988,7 +987,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      */
     @Override
     public ConsumerRecords<K, V> poll(long timeout) {
-        acquire(); // 线程独占
+        acquire(); // 线程独占, 是为了防范多线程调用. 如果发现多线程调用, 内部会直接抛异常出来
         try {
             if (timeout < 0)
                 throw new IllegalArgumentException("Timeout must not be negative");
@@ -1092,7 +1091,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @throws org.apache.kafka.common.KafkaException for any other unrecoverable errors (e.g. if offset metadata
      *             is too large or if the committed offset is invalid).
      */
-    // 同步提交偏移量
+    // 手动同步提交偏移量
     @Override
     public void commitSync() {
         acquire();
@@ -1141,6 +1140,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * Commit offsets returned on the last {@link #poll(long) poll()} for all the subscribed list of topics and partition.
      * Same as {@link #commitAsync(OffsetCommitCallback) commitAsync(null)}
      */
+    // 手动异步提交偏移量
     @Override
     public void commitAsync() {
         commitAsync(null);
