@@ -724,6 +724,7 @@ public class Fetcher<K, V> implements SubscriptionState.Listener {
      * Create fetch requests for all nodes for which we have assigned partitions
      * that have no existing requests in flight.
      */
+    // //关键函数: 把所有属于同一个Node的TopicPartition放在一起, 生成一个FetchRequest
     private Map<Node, FetchRequest.Builder> createFetchRequests() {
         // create the fetch info
         Cluster cluster = metadata.fetch();
