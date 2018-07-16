@@ -81,7 +81,7 @@ public class Selector implements Selectable {
     private static final Logger log = LoggerFactory.getLogger(Selector.class);
 
     private final java.nio.channels.Selector nioSelector;
-    private final Map<String, KafkaChannel> channels;
+    private final Map<String, KafkaChannel> channels; // 它维护了所有连接的连接池
     private final List<Send> completedSends;
     private final List<NetworkReceive> completedReceives;
     private final Map<KafkaChannel, Deque<NetworkReceive>> stagedReceives;
@@ -254,9 +254,10 @@ public class Selector implements Selectable {
         if (closingChannels.containsKey(connectionId))
             this.failedSends.add(connectionId);
         else {
+            // 找到数据包相对应的connection
             KafkaChannel channel = channelOrFail(connectionId, false);
             try {
-                channel.setSend(send);
+                channel.setSend(send); // 暂存在这个connection(channel)里面
             } catch (CancelledKeyException e) {
                 this.failedSends.add(connectionId);
                 close(channel, false);

@@ -34,7 +34,7 @@ public class KafkaChannel {
     private final Authenticator authenticator;
     private final int maxReceiveSize;
     private NetworkReceive receive;
-    private Send send;
+    private Send send; // 关键点: 1个channel一次只能存放1个数据包, 在当前的send数据包没有完整发出去之前，不能存放下一个
     // Track connection and mute state of channels to enable outstanding requests on channels to be
     // processed after the channel is disconnected.
     private boolean disconnected;
@@ -134,9 +134,9 @@ public class KafkaChannel {
     }
 
     public void setSend(Send send) {
-        if (this.send != null)
+        if (this.send != null) // 关键点: 当前的没有发出去之前, 不能暂存下一个
             throw new IllegalStateException("Attempt to begin a send operation with prior send operation still in progress.");
-        this.send = send;
+        this.send = send; // 暂存这个数据包
         this.transportLayer.addInterestOps(SelectionKey.OP_WRITE);
     }
 
