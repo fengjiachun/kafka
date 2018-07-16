@@ -281,6 +281,8 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         invokeCompletedOffsetCommitCallbacks();
 
         if (subscriptions.partitionsAutoAssigned() && coordinatorUnknown()) {
+            // 对于每1个consumer group, Kafka集群为其从broker集群中选择一个broker作为其coordinator.
+            // 因此, 第1步就是找到这个coordinator, 如果没找到, 就会一直阻塞在这里
             ensureCoordinatorReady();
             now = time.milliseconds();
         }

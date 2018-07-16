@@ -72,6 +72,10 @@ public final class RecordAccumulator {
     private final BufferPool free;
     private final Time time;
     // 每个TopicPartition对应一个消息队列, 只有同一个TopicPartition的消息, 才可能被batch.
+    //
+    // 为什么是Deque?
+    // 是为了处理"发送失败, 重试"的问题: 当消息发送失败, 要重发的时候, 需要把消息优先放入队列头部重新发送,
+    // 这就需要用到双端队列, 在头部, 而不是尾部加入
     private final ConcurrentMap<TopicPartition, Deque<RecordBatch>> batches;
     private final IncompleteRecordBatches incomplete;
     // The following variables are only accessed by the sender thread, so we don't need to protect them.
