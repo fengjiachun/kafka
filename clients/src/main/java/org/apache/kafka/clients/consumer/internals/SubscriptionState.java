@@ -62,11 +62,11 @@ public class SubscriptionState {
     /* the pattern user has requested */
     private Pattern subscribedPattern;
 
-    // 对应subscribe模式, 用户注册的主题
+    // 对应subscribe模式, 该consumer订阅的所有topics
     /* the list of topics the user has requested */
     private Set<String> subscription;
 
-    // 消费组订阅的主题
+    // 该consumer所属的group中, 所有consumer订阅的topic. 该字段只对consumer leader有用
     /* the list of topics the group has subscribed to (set only for the leader on join group completion) */
     private final Set<String> groupSubscription;
 
@@ -438,10 +438,10 @@ public class SubscriptionState {
 
     // 分区状态
     private static class TopicPartitionState {
-        // 拉取偏移量
+        // 记录当前要消费的offset
         private Long position; // last consumed position
         private Long highWatermark; // the high watermark from last fetch
-        // 消费偏移量, 提交偏移量
+        // 记录已经commit过的offset
         private OffsetAndMetadata committed;  // last committed position
         // 分区是否被暂停拉取
         private boolean paused;  // whether this partition has been paused by the user

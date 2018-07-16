@@ -21,6 +21,7 @@ import java.io.Serializable;
  */
 public class OffsetAndMetadata implements Serializable {
     private final long offset;
+    // 额外字段, 可以不用. 比如客户端可以记录哪个client, 什么时间点做的这个commit
     private final String metadata;
 
     /**
