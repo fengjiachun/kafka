@@ -30,10 +30,10 @@ import java.util.Set;
 public final class Cluster {
 
     private final boolean isBootstrapConfigured;
-    private final List<Node> nodes;
+    private final List<Node> nodes; // Node也就是Broker
     private final Set<String> unauthorizedTopics;
     private final Set<String> internalTopics;
-    private final Map<TopicPartition, PartitionInfo> partitionsByTopicPartition;
+    private final Map<TopicPartition, PartitionInfo> partitionsByTopicPartition; // Topic/Partition和Broker-List的映射关系
     private final Map<String, List<PartitionInfo>> partitionsByTopic;
     private final Map<String, List<PartitionInfo>> availablePartitionsByTopic;
     private final Map<Integer, List<PartitionInfo>> partitionsByNode;

@@ -165,18 +165,19 @@ public class Sender implements Runnable {
      */
     void run(long now) {
         Cluster cluster = metadata.fetch();
-        // 获取准备发送的所有分区
+        // 遍历, 获取准备发送的所有分区
         // get the list of partitions with data ready to send
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
 
         // if there are any partitions whose leaders are not known yet, force metadata update
+        // 如果一个ready的node都没有, 请求更新metadata
         if (!result.unknownLeaderTopics.isEmpty()) {
             // The set of topics with unknown leader contains topics with leader election pending as well as
             // topics which may have expired. Add the topic again to metadata to ensure it is included
             // and request metadata update, since there are messages to send to the topic.
             for (String topic : result.unknownLeaderTopics)
                 this.metadata.add(topic);
-            this.metadata.requestUpdate();
+            this.metadata.requestUpdate(); // 判定metadata失效
         }
 
         // 建立到主副本的网络连接, 移除还为准备好的节点

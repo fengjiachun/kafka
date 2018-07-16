@@ -43,6 +43,10 @@ import java.util.Set;
  * is removed from the metadata refresh set after an update. Consumers disable topic expiry since they explicitly
  * manage topics while producers rely on topic expiry to limit the refresh set.
  */
+// Metadata的2种更新机制(每次poll的时候, 都检查这2种更新机制, 达到了, 就触发更新):
+// 1. 周期性的更新: 每隔一段时间更新一次. 这个通过metadata的lastRefreshMs, lastSuccessfulRefreshMs 这2个字段来实现
+// 2. 失效检测, 强制更新: 检查到metadata失效以后, 调用metadata.requestUpdate()强制更新. requestUpdate()函数里面其实什么都没做,
+// 就是把needUpdate置成了false
 public final class Metadata {
 
     private static final Logger log = LoggerFactory.getLogger(Metadata.class);
@@ -50,13 +54,17 @@ public final class Metadata {
     public static final long TOPIC_EXPIRY_MS = 5 * 60 * 1000;
     private static final long TOPIC_EXPIRY_NEEDS_UPDATE = -1L;
 
-    private final long refreshBackoffMs;
-    private final long metadataExpireMs;
-    private int version;
-    private long lastRefreshMs;
-    private long lastSuccessfulRefreshMs;
-    private Cluster cluster;
-    private boolean needUpdate;
+    private final long refreshBackoffMs; // 更新失败的情况下, 下一次更新的补偿时间 (这个变量在代码中意义不是太大)
+    private final long metadataExpireMs; // 关键值: 每隔多久, 更新一次
+    private int version; // 每更新成功1次, version递增1. 这个变量主要用于在while循环, wait的时候, 作为循环判断条件
+    private long lastRefreshMs; // 上一次更新时间 (也包含更新失败的情况)
+    private long lastSuccessfulRefreshMs; // 上一次成功更新的时间 (如果每次都成功的话, 则2者相等. 否则, lastSuccessfulRefreshMs < lastRefreshMs)
+    // Metadata的cluster对象, 每次是整个覆盖的, 而不是局部更新. 所以cluster内部不用加锁.
+    //
+    // 更新的时候, 是从metadata保存的所有Node, 或者说Broker中, 选负载最小的那个, 也就是当前接收请求最少的那个.
+    // 向其发送MetadataRequest请求, 获取新的Cluster对象.
+    private Cluster cluster; // 集群配置信息
+    private boolean needUpdate; // 是否强制刷新
     /* Topics with expiry time */
     private final Map<String, Long> topics;
     private final List<Listener> listeners;
@@ -151,11 +159,11 @@ public final class Metadata {
         }
         long begin = System.currentTimeMillis();
         long remainingWaitMs = maxWaitMs;
-        while (this.version <= lastVersion) {
+        while (this.version <= lastVersion) { // 当Sender成功更新metadata之后, version加1. 否则会循环, 一直wait
             if (remainingWaitMs != 0)
-                wait(remainingWaitMs);
+                wait(remainingWaitMs); // 线程的wait机制, wait和synchronized的配合使用
             long elapsed = System.currentTimeMillis() - begin;
-            if (elapsed >= maxWaitMs)
+            if (elapsed >= maxWaitMs) // wait时间超出了最长等待时间
                 throw new TimeoutException("Failed to update metadata after " + maxWaitMs + " ms.");
             remainingWaitMs = maxWaitMs - elapsed;
         }
@@ -201,6 +209,7 @@ public final class Metadata {
      *        leader is not known
      * @param now current time in milliseconds
      */
+    // 更新成功, version+1,  同时更新其它字段
     public synchronized void update(Cluster cluster, Set<String> unavailableTopics, long now) {
         Objects.requireNonNull(cluster, "cluster should not be null");
 
@@ -224,7 +233,7 @@ public final class Metadata {
         }
 
         for (Listener listener: listeners)
-            listener.onMetadataUpdate(cluster, unavailableTopics);
+            listener.onMetadataUpdate(cluster, unavailableTopics); // 如果有人监听了metadata的更新, 通知他们
 
         String previousClusterId = cluster.clusterResource().clusterId();
 
@@ -245,7 +254,7 @@ public final class Metadata {
             clusterResourceListeners.onUpdate(cluster.clusterResource());
         }
 
-        notifyAll();
+        notifyAll(); // 通知所有的阻塞的producer线程
         log.debug("Updated cluster metadata version {} to {}", this.version, this.cluster);
     }
 
@@ -253,6 +262,7 @@ public final class Metadata {
      * Record an attempt to update the metadata that failed. We need to keep track of this
      * to avoid retrying immediately.
      */
+    // 更新失败, 只更新lastRefreshMs
     public synchronized void failedUpdate(long now) {
         this.lastRefreshMs = now;
     }

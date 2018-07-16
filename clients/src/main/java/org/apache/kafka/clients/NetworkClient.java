@@ -351,7 +351,7 @@ public class NetworkClient implements KafkaClient {
      */
     @Override
     public List<ClientResponse> poll(long timeout, long now) {
-        long metadataTimeout = metadataUpdater.maybeUpdate(now);
+        long metadataTimeout = metadataUpdater.maybeUpdate(now); //关键点: 每次poll的时候判断是否要更新metadata
         try {
             this.selector.poll(Utils.min(timeout, metadataTimeout, requestTimeoutMs));
         } catch (IOException e) {
@@ -503,7 +503,7 @@ public class NetworkClient implements KafkaClient {
 
         // we disconnected, so we should probably refresh our metadata
         if (!nodeIds.isEmpty())
-            metadataUpdater.requestUpdate();
+            metadataUpdater.requestUpdate(); // 判定metadata失效
     }
 
     private void handleAbortedSends(List<ClientResponse> responses) {
@@ -580,7 +580,7 @@ public class NetworkClient implements KafkaClient {
         }
         // we got a disconnect so we should probably refresh our metadata and see if that broker is dead
         if (this.selector.disconnected().size() > 0)
-            metadataUpdater.requestUpdate();
+            metadataUpdater.requestUpdate(); // 判定metadata失效
     }
 
     /**
@@ -642,7 +642,7 @@ public class NetworkClient implements KafkaClient {
             /* attempt failed, we'll try again after the backoff */
             connectionStates.disconnected(nodeConnectionId, now);
             /* maybe the problem is our metadata, update it */
-            metadataUpdater.requestUpdate();
+            metadataUpdater.requestUpdate(); // 判定metadata失效
             log.debug("Error connecting to node {} at {}:{}:", node.id(), node.host(), node.port(), e);
         }
     }
@@ -683,13 +683,13 @@ public class NetworkClient implements KafkaClient {
 
             // Beware that the behavior of this method and the computation of timeouts for poll() are
             // highly dependent on the behavior of leastLoadedNode.
-            Node node = leastLoadedNode(now);
+            Node node = leastLoadedNode(now); // 找到负载最小的Node
             if (node == null) {
                 log.debug("Give up sending metadata request since no node is available");
                 return reconnectBackoffMs;
             }
 
-            return maybeUpdate(now, node);
+            return maybeUpdate(now, node); // 把更新Metadata的请求, 发给这个Node
         }
 
         @Override
@@ -708,7 +708,7 @@ public class NetworkClient implements KafkaClient {
         @Override
         public void handleCompletedMetadataResponse(RequestHeader requestHeader, long now, MetadataResponse response) {
             this.metadataFetchInProgress = false;
-            Cluster cluster = response.cluster();
+            Cluster cluster = response.cluster(); // 从response中, 拿到一个新的cluster对象
             // check if any topics metadata failed to get updated
             Map<String, Errors> errors = response.errors();
             if (!errors.isEmpty())
@@ -717,10 +717,10 @@ public class NetworkClient implements KafkaClient {
             // don't update the cluster if there are no valid nodes...the topic we want may still be in the process of being
             // created which means we will get errors and no nodes until it exists
             if (cluster.nodes().size() > 0) {
-                this.metadata.update(cluster, response.unavailableTopics(), now);
+                this.metadata.update(cluster, response.unavailableTopics(), now); // 更新metadata, 用新的cluster覆盖旧的cluster
             } else {
                 log.trace("Ignoring empty metadata response with correlation id {}.", requestHeader.correlationId());
-                this.metadata.failedUpdate(now);
+                this.metadata.failedUpdate(now); // 更新metadata失败, 做失败处理逻辑
             }
         }
 
@@ -757,6 +757,7 @@ public class NetworkClient implements KafkaClient {
 
 
                 log.debug("Sending metadata request {} to node {}", metadataRequest, node.id());
+                // 关键点: 发送更新Metadata的Request
                 sendInternalMetadataRequest(metadataRequest, nodeConnectionId, now);
                 return requestTimeoutMs;
             }
