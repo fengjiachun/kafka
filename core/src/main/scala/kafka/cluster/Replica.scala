@@ -34,6 +34,7 @@ class Replica(val brokerId: Int,
   @volatile private[this] var highWatermarkMetadata = new LogOffsetMetadata(initialHighWatermarkValue)
   // the log end offset value, kept in all replicas;
   // for local replica it is the log's end offset, for remote replicas its value is only updated by follower fetch
+  // 核心变量: 该Replica当前从leader那fetch消息的最近offset, 简称为loe
   @volatile private[this] var logEndOffsetMetadata = LogOffsetMetadata.UnknownOffsetMetadata
 
   // The log end offset value at the time the leader received the last FetchRequest from this follower

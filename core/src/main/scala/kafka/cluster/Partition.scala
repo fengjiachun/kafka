@@ -55,7 +55,9 @@ class Partition(val topic: String,
   private val leaderIsrUpdateLock = new ReentrantReadWriteLock
   private var zkVersion: Int = LeaderAndIsr.initialZKVersion
   @volatile private var leaderEpoch: Int = LeaderAndIsr.initialLeaderEpoch - 1
+  // 核心变量: 这个Partition的leader
   @volatile var leaderReplicaIdOpt: Option[Int] = None
+  // //核心变量: isr, 也即除了leader以外, 其它所有的活着的follower集合
   @volatile var inSyncReplicas: Set[Replica] = Set.empty[Replica]
 
   /* Epoch of the controller that last changed the leader. This needs to be initialized correctly upon broker startup.

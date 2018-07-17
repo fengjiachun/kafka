@@ -113,6 +113,7 @@ class ReplicaManager(val config: KafkaConfig,
   /* epoch of the controller that last changed the leader */
   @volatile var controllerEpoch: Int = KafkaController.InitialControllerEpoch - 1
   private val localBrokerId = config.brokerId
+  // 核心变量: 存储该节点上所有的Partition
   private val allPartitions = new Pool[TopicPartition, Partition](valueFactory = Some(tp =>
     new Partition(tp.topic, tp.partition, time, this)))
   private val replicaStateChangeLock = new Object
@@ -126,6 +127,8 @@ class ReplicaManager(val config: KafkaConfig,
   private val lastIsrChangeMs = new AtomicLong(System.currentTimeMillis())
   private val lastIsrPropagationMs = new AtomicLong(System.currentTimeMillis())
 
+  // 关键组件: 每来1个ProduceRequest, 写入本地日志之后. 就会生成一个DelayedProduce对象, 放入delayedProducePurgatory中.
+  // 之后这个delayedProduce对象, 要么在处理FetchRequest的时候, 被complete(); 要么在purgatory内部被超时.
   val delayedProducePurgatory = DelayedOperationPurgatory[DelayedProduce](
     purgatoryName = "Produce", localBrokerId, config.producerPurgatoryPurgeIntervalRequests)
   val delayedFetchPurgatory = DelayedOperationPurgatory[DelayedFetch](
@@ -458,7 +461,7 @@ class ReplicaManager(val config: KafkaConfig,
 
     // if the fetch comes from the follower,
     // update its corresponding log end offset
-    if(Request.isValidBrokerId(replicaId))
+    if(Request.isValidBrokerId(replicaId)) // 关键性的判断: 如果这个FetchRequest来自一个Replica, 而不是普通的Consumer
       updateFollowerLogReadResults(replicaId, logReadResults)
 
     // check if this fetch request can be satisfied right away
