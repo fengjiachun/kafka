@@ -151,6 +151,13 @@ object KafkaController extends Logging {
 }
 
 class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState: BrokerState, time: Time, metrics: Metrics, threadNamePrefix: Option[String] = None) extends Logging with KafkaMetricsGroup {
+  // 选举基本原理:
+  // 整个选举过程是通过zk上的一个临时节点来实现的: /controller 节点, 其data结构为: 核心信息就是记录当前的controller的brokerId
+  // "version" -> 1, "brokerid" -> brokerId, "timestamp" -> timestamp
+  // 当controller挂了, 其它所有broker监听到此临时节点消失, 然后争相创建此临时节点, 谁创建成功, 谁就成为新的Controller
+  // 除了 /controller 节点, 还有一个辅助的 /controller_epoch, 记录当前Controller的轮值数
+  //
+
   this.logIdent = "[Controller " + config.brokerId + "]: "
   private var isRunning = true
   private val stateChangeLogger = KafkaController.stateChangeLogger
@@ -333,9 +340,11 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
     if(isRunning) {
       info("Broker %d starting become controller state transition".format(config.brokerId))
       readControllerEpochFromZookeeper()
+      // 递增controller epoch
       incrementControllerEpoch(zkUtils.zkClient)
 
       // before reading source of truth from zookeeper, register the listeners to get broker/topic callbacks
+      // 关键点: 接管所有对 broker/partition 节点的监听
       registerReassignedPartitionsListener()
       registerIsrChangeNotificationListener()
       registerPreferredReplicaElectionListener()
@@ -379,6 +388,7 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
   def onControllerResignation() {
     debug("Controller resigning, broker id %d".format(config.brokerId))
     // de-register listeners
+    // 关键点: 放弃对所有 broker/partition 的监听
     deregisterIsrChangeNotificationListener()
     deregisterReassignedPartitionsListener()
     deregisterPreferredReplicaElectionListener()
@@ -1167,6 +1177,7 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
     finalLeaderIsrAndControllerEpoch
   }
 
+  // 监听session重连
   class SessionExpirationListener() extends IZkStateListener with Logging {
     this.logIdent = "[SessionExpirationListener on " + config.brokerId + "], "
 
@@ -1184,9 +1195,9 @@ class KafkaController(val config: KafkaConfig, zkUtils: ZkUtils, val brokerState
     def handleNewSession() { // 会话超时, 重新开始选举
       info("ZK expired; shut down all controller components and try to re-elect")
       if (controllerElector.getControllerID() != config.brokerId) {
-        onControllerResignation()
+        onControllerResignation() // 选退位
         inLock(controllerContext.controllerLock) {
-          controllerElector.elect
+          controllerElector.elect // 发起重新选举
         }
       } else {
         // This can happen when there are multiple consecutive session expiration and handleNewSession() are called multiple

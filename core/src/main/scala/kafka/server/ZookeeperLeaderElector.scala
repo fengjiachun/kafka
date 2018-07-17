@@ -43,7 +43,7 @@ class ZookeeperLeaderElector(controllerContext: ControllerContext,
   val index = electionPath.lastIndexOf("/")
   if (index > 0)
     controllerContext.zkUtils.makeSurePersistentPathExists(electionPath.substring(0, index))
-  val leaderChangeListener = new LeaderChangeListener
+  val leaderChangeListener = new LeaderChangeListener // 监听 /controller 节点变化
 
   def startup {
     inLock(controllerContext.controllerLock) {
@@ -115,6 +115,7 @@ class ZookeeperLeaderElector(controllerContext: ControllerContext,
    * We do not have session expiration listen in the ZkElection, but assuming the caller who uses this module will
    * have its own session expiration listener and handler
    */
+  // 监听 /controller 节点变化
   class LeaderChangeListener extends IZkDataListener with Logging {
     /**
      * Called when the leader information stored in zookeeper has changed. Record the new leader in memory
@@ -131,7 +132,7 @@ class ZookeeperLeaderElector(controllerContext: ControllerContext,
       }
 
       if (shouldResign)
-        onResigningAsLeader()
+        onResigningAsLeader() // 自己以前是controller, 现在不是, 退位
     }
 
     /**
@@ -147,11 +148,13 @@ class ZookeeperLeaderElector(controllerContext: ControllerContext,
         amILeader
       }
 
+      // 当 /controller节点被删除, 则调用elect()函数, 发起重新选举.
+      // 在重新选举之前, 先判断自己是否旧的Controller, 如果是, 则先调用onResignation退位
       if (shouldResign)
-        onResigningAsLeader()
+        onResigningAsLeader() // 自己以前是controller, 现在不是, 退位
 
       inLock(controllerContext.controllerLock) {
-        elect
+        elect // 发起重新选举
       }
     }
   }
